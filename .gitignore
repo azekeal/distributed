@@ -4,5 +4,5 @@
 
 /.vs/Distributed/v15
 /packages
-/src/Agent/bin/Debug
-/src/Agent/obj/Debug
+**/bin/Debug
+**/obj/Debug

@@ -31,6 +31,14 @@ namespace Agent
             RegisterWithCoordinator();
         }
 
+        public void Dispose()
+        {
+            coordinator.Dispose();
+            host.Dispose();
+        }
+
+        public string HostUrl => $"http://localhost:{Constants.Ports.AgentHost}";
+
         private void StartListeningForDispatchers()
         {
             dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
@@ -40,7 +48,7 @@ namespace Agent
             {
                 foreach (var c in DispatcherConnections.ConnectionIds[name])
                 {
-                    dispatcherHubContext.Clients.Client(c).AgentSaysHello("hello");
+                    dispatcherHubContext.Clients.Client(c).AgentSaysHello($"hello i am agent {Identifier}");
                 }
             };
 
@@ -52,14 +60,6 @@ namespace Agent
         {
             coordinator = new HubConnection($"http://localhost:{Constants.Ports.CoordinatorHost}/signalr", Identifier, EndpointData, "AgentHub");
             coordinator.Start();
-        }
-
-        public string HostUrl => $"http://localhost:{Constants.Ports.AgentHost}";
-
-        public void Dispose()
-        {
-            coordinator.Dispose();
-            host.Dispose();
         }
     }    
 }

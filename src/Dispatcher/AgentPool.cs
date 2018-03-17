@@ -1,8 +1,11 @@
 ﻿using Common;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Dispatcher
 {
-    public class AgentPool : EndpointPool
+    public class AgentPool : EndpointPool, IEnumerable<Agent>
     {
         private Dispatcher dispatcher;
 
@@ -15,5 +18,8 @@ namespace Dispatcher
         {
             return new Agent(dispatcher, info);
         }
+
+        public IEnumerator<Agent> GetEnumerator() => endpoints.Values.Select(endpoint => (Agent)endpoint).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     }
 }

@@ -8,8 +8,8 @@ namespace Common
 
     public class EndpointPool : IDisposable
     {
-        private object lockObj = new object();
-        private Dictionary<string, Endpoint> endpoints = new Dictionary<string, Endpoint>();
+        protected object lockObj = new object();
+        protected ConcurrentDictionary<string, Endpoint> endpoints = new ConcurrentDictionary<string, Endpoint>();
 
         public EndpointPool()
         {
@@ -25,7 +25,7 @@ namespace Common
             lock (lockObj)
             {
                 Debug.Assert(!endpoints.ContainsKey(info.name));
-                endpoints.Add(info.name, CreateEndpoint(info));
+                endpoints.TryAdd(info.name, CreateEndpoint(info));
             }
         }
 
@@ -33,9 +33,8 @@ namespace Common
         {
             lock (lockObj)
             {
-                if (endpoints.TryGetValue(name, out var endpoint))
-                {
-                    endpoints.Remove(name);
+                if (endpoints.TryRemove(name, out var endpoint))
+                { 
                     endpoint.Dispose();
                 }
             }

@@ -3,31 +3,31 @@ using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Hosting;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Agent
 {
     public class DispatcherHub : EndpointHub
     {
         public DispatcherHub() => ClientConnectionHandler = Agent.Instance.DispatcherConnections;
-        public void SetDispatcherPriority(int priority) => Agent.Instance.SetDispatcherPriority(Name, priority);
-    }
 
-    //public class Dispatcher
-    //{
-    //    public string name;
-    //}
+        public InitializationResult Initialize(object initializationConfig) => Agent.Instance.Initialize(initializationConfig);
+        public TaskResult[] StartTasks(IEnumerable<TaskItem> tasks) => Agent.Instance.StartTasks(tasks);
+    }
 
     public class Agent : IDisposable
     {
         public static Agent Instance { get; private set; }
-        public ClientConnectionHandler DispatcherConnections { get; private set; }
+        public DispatcherConnectionHandler DispatcherConnections { get; private set; }
         public string Identifier { get; private set; }
         public string EndpointData { get; private set; }
 
-        //private SortedList<int, Dispatcher> dispatchers;
         private HubConnection coordinator;
         private IHubContext dispatcherHubContext;
         private IDisposable host;
+        private string activeDispatcherName;
+        private dynamic ActiveDispatcher;
 
         public Agent()
         {
@@ -51,12 +51,18 @@ namespace Agent
         {
             dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
 
-            DispatcherConnections = new ClientConnectionHandler();
-            DispatcherConnections.EndpointAdded += (name, connectionId, info) => 
+            DispatcherConnections = new DispatcherConnectionHandler(dispatcherHubContext);
+            DispatcherConnections.EndpointAdded += (name, connectionId, info) =>
             {
-                foreach (var c in DispatcherConnections.ConnectionIds[name])
+                if (activeDispatcherName == null)
                 {
-                    var dispatcher = dispatcherHubContext.Clients.Client(c);
+                    // TODO: groups
+                    activeDispatcherName = name;
+                    ActiveDispatcher = DispatcherConnections[name].FirstOrDefault();
+                }
+
+                foreach (var dispatcher in DispatcherConnections[name])
+                {
                     dispatcher.SetAgentIdentifier(Identifier);
                 }
             };
@@ -71,9 +77,39 @@ namespace Agent
             coordinator.Start();
         }
 
-        internal void SetDispatcherPriority(string name, int priority)
+        internal TaskResult[] StartTasks(IEnumerable<TaskItem> tasks)
         {
-            //throw new NotImplementedException();
+            var results = tasks.Select(t => new TaskResult()
+            {
+                success = true,
+                errorMessage = null,
+                data = null
+            }).ToArray();
+
+            Task.Delay(1000).ContinueWith(t =>
+            {
+                foreach (var task in tasks)
+                {
+                    ActiveDispatcher.TaskCompleted(task, new TaskResult()
+                    {
+                        success = true,
+                        errorMessage = null,
+                        data = null
+                    });
+                }
+            });
+
+            return results;
         }
-    }    
+
+        internal InitializationResult Initialize(object initializationConfig)
+        {
+            return new InitializationResult()
+            {
+                success = true,
+                errorMessage = null,
+                capacity = 1
+            };
+        }
+    }
 }

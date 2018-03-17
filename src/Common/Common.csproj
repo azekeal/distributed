@@ -32,11 +32,11 @@
   <ItemGroup>
     <Reference Include="Microsoft.AspNet.SignalR.Client, Version=2.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\bin\Debug\Microsoft.AspNet.SignalR.Client.dll</HintPath>
+      <HintPath>..\..\packages\Microsoft.AspNet.SignalR.Client.2.2.3\lib\net45\Microsoft.AspNet.SignalR.Client.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.AspNet.SignalR.Core, Version=2.2.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\bin\Debug\Microsoft.AspNet.SignalR.Core.dll</HintPath>
+      <HintPath>..\..\packages\Microsoft.AspNet.SignalR.Core.2.2.3\lib\net45\Microsoft.AspNet.SignalR.Core.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -51,14 +51,17 @@
     <Compile Include="Client\EndpointHubConnection.cs" />
     <Compile Include="Client\HubConnection.cs" />
     <Compile Include="Client\Endpoint.cs" />
+    <Compile Include="InitializationResult.cs" />
+    <Compile Include="ITaskProvider.cs" />
+    <Compile Include="Messages\JobInfo.cs" />
     <Compile Include="Messages\EndpointConnectionInfo.cs" />
     <Compile Include="Server\ClientConnectionHandler.cs" />
+    <Compile Include="TaskItem.cs" />
+    <Compile Include="TaskResult.cs" />
     <Compile Include="Util\Constants.cs" />
-    <Compile Include="Class1.cs" />
     <Compile Include="Server\EndpointHub.cs" />
     <Compile Include="Client\EndpointPool.cs" />
     <Compile Include="Util\ObservableDictionary.cs" />
-    <Compile Include="Session.cs" />
     <Compile Include="Util\ConnectionMapping.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

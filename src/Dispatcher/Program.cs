@@ -1,20 +1,66 @@
 ﻿using Common;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dispatcher
 {
+    public class StdInTaskProvider : ITaskProvider
+    {
+        private Queue<string> work = new Queue<string>();
+
+        public int TaskCount => 1;
+
+        public bool CompleteTask(TaskItem task, TaskResult result)
+        {
+            Console.WriteLine($"Task completed {task.Identifier} ({task.Data})");
+            return true;
+        }
+
+        public bool TryGetTask(out TaskItem task)
+        {
+            lock (work)
+            {
+                if (work.Count > 0)
+                {
+                    var line = work.Dequeue();
+                    task = new TaskItem($"task_{Guid.NewGuid()}", line);
+                    return true;
+                }
+
+                task = new TaskItem();
+                return false;
+            }
+        }
+
+        public void AddWork(string line)
+        {
+            lock (work)
+            {
+                work.Enqueue(line);
+            }
+        }
+    }
+
+
     public class Program
     {
         static void Main(string[] args)
         {
-            using (var dispatcher = new Dispatcher())
+            // TODO: parse args
+            var config = new Config();
+            var taskProvider = new StdInTaskProvider();
+
+
+            using (var dispatcher = new Dispatcher(config))
             {
                 var shutdown = new CancellationTokenSource();
 
                 Task.Run(() =>
                 {
+                    dispatcher.AddJob(taskProvider);
+
                     while (true)
                     {
                         var line = Console.ReadLine();
@@ -25,7 +71,7 @@ namespace Dispatcher
                         }
                         else
                         {
-                            //coordinator.SendMessage("hello");
+                            taskProvider.AddWork(line);
                         }
                     }
                 });

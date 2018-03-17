@@ -2,13 +2,20 @@
 using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Hosting;
 using System;
+using System.Collections.Generic;
 
 namespace Agent
 {
     public class DispatcherHub : EndpointHub
     {
         public DispatcherHub() => ClientConnectionHandler = Agent.Instance.DispatcherConnections;
+        public void SetDispatcherPriority(int priority) => Agent.Instance.SetDispatcherPriority(Name, priority);
     }
+
+    //public class Dispatcher
+    //{
+    //    public string name;
+    //}
 
     public class Agent : IDisposable
     {
@@ -17,6 +24,7 @@ namespace Agent
         public string Identifier { get; private set; }
         public string EndpointData { get; private set; }
 
+        //private SortedList<int, Dispatcher> dispatchers;
         private HubConnection coordinator;
         private IHubContext dispatcherHubContext;
         private IDisposable host;
@@ -48,7 +56,8 @@ namespace Agent
             {
                 foreach (var c in DispatcherConnections.ConnectionIds[name])
                 {
-                    dispatcherHubContext.Clients.Client(c).AgentSaysHello($"hello i am agent {Identifier}");
+                    var dispatcher = dispatcherHubContext.Clients.Client(c);
+                    dispatcher.SetAgentIdentifier(Identifier);
                 }
             };
 
@@ -60,6 +69,11 @@ namespace Agent
         {
             coordinator = new HubConnection($"http://localhost:{Constants.Ports.CoordinatorHost}/signalr", Identifier, EndpointData, "AgentHub");
             coordinator.Start();
+        }
+
+        internal void SetDispatcherPriority(string name, int priority)
+        {
+            //throw new NotImplementedException();
         }
     }    
 }

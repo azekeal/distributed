@@ -9,8 +9,8 @@ namespace Common
     {
         public ClientConnectionHandler ClientConnectionHandler;
 
-        private string Name => Context.Headers["id"];
-        private string EndpointData => Context.Headers["endpoint"];
+        public string Name => Context.Headers["id"];
+        public string EndpointData => Context.Headers["endpoint"];
 
         public override Task OnConnected()
         {

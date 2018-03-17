@@ -11,11 +11,12 @@ namespace Common
     {
         protected Microsoft.AspNet.SignalR.Client.HubConnection hubConnection;
         protected IHubProxy proxy;
-
         protected ConnectionState connectionState = ConnectionState.Disconnected;
         protected bool reconnect = true;
         protected string identifier;
 
+        public event Action<StateChange> StateChanged;
+        public string HubName { get; internal set; }
         public IHubProxy Proxy => proxy;
 
         public HubConnection(string url, string id, string endpointData, string hubName)
@@ -31,7 +32,6 @@ namespace Common
             CreateProxy();
         }
 
-        public string HubName { get; internal set; }
 
         public virtual void Start()
         {
@@ -49,18 +49,20 @@ namespace Common
             hubConnection.Stop();
         }
 
-        protected virtual void OnStateChanged(StateChange obj)
+        protected virtual void OnStateChanged(StateChange stateChange)
         {
-            connectionState = obj.NewState;
-            Console.WriteLine($"{obj.OldState} {obj.NewState}");
+            connectionState = stateChange.NewState;
+            Console.WriteLine($"{stateChange.OldState} {stateChange.NewState}");
 
-            if (obj.NewState == ConnectionState.Disconnected)
+            if (stateChange.NewState == ConnectionState.Disconnected)
             {
                 if (reconnect)
                 {
                     Task.Delay(1000).ContinueWith((t) => hubConnection.Start());
                 }
             }
+
+            StateChanged?.Invoke(stateChange);
         }
 
         public virtual void Dispose()

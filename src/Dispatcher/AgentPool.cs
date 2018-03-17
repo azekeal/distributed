@@ -13,7 +13,7 @@ namespace Dispatcher
 
         public override Endpoint CreateEndpoint(EndpointConnectionInfo info)
         {
-            return new Agent(dispatcher.Identifier, dispatcher.EndpointData, info);
+            return new Agent(dispatcher, info);
         }
     }
 }

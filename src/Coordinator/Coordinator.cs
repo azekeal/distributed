@@ -38,10 +38,10 @@ namespace Coordinator
             dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
             agentHubContext = GlobalHost.ConnectionManager.GetHubContext<AgentHub>();
 
-            DispatcherConnections = new ClientConnectionHandler();
+            DispatcherConnections = new ClientConnectionHandler(dispatcherHubContext);
             DispatcherConnections.EndpointAdded += OnDispatcherAdded;
 
-            AgentConnections = new ClientConnectionHandler();
+            AgentConnections = new ClientConnectionHandler(agentHubContext);
             AgentConnections.EndpointAdded += OnAgentAdded;
             AgentConnections.EndpointRemoved += OnAgentRemoved;
 

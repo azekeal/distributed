@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Agent
 {
+    /// <summary>
+    /// Hub for dispatchers connecting to this agent
+    /// </summary>
     public class DispatcherHub : EndpointHub
     {
         public DispatcherHub() => ClientConnectionHandler = Agent.Instance.DispatcherConnections;
@@ -77,29 +80,37 @@ namespace Agent
             coordinator.Start();
         }
 
-        internal TaskResult[] StartTasks(IEnumerable<TaskItem> tasks)
+        internal TaskResult[] StartTasks(IEnumerable<TaskItem> items)
         {
-            var results = tasks.Select(t => new TaskResult()
+            var tasks = items.ToArray();
+            if (tasks.Length > 0)
             {
-                success = true,
-                errorMessage = null,
-                data = null
-            }).ToArray();
-
-            Task.Delay(1000).ContinueWith(t =>
-            {
-                foreach (var task in tasks)
+                var results = tasks.Select(t => new TaskResult()
                 {
-                    ActiveDispatcher.TaskCompleted(task, new TaskResult()
-                    {
-                        success = true,
-                        errorMessage = null,
-                        data = null
-                    });
-                }
-            });
+                    success = true,
+                    errorMessage = null,
+                    data = null
+                }).ToArray();
 
-            return results;
+                Task.Delay(1000).ContinueWith(t =>
+                {
+                    foreach (var task in tasks)
+                    {
+                        ActiveDispatcher.TaskCompleted(task, new TaskResult()
+                        {
+                            success = true,
+                            errorMessage = null,
+                            data = task.Data
+                        });
+                    }
+                });
+
+                return results;
+            }
+            else
+            {
+                return new TaskResult[0] { };
+            }
         }
 
         internal InitializationResult Initialize(object initializationConfig)

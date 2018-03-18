@@ -1,4 +1,6 @@
-﻿namespace Common
+﻿using System;
+
+namespace Common
 {
     public interface ITaskProvider
     {
@@ -10,5 +12,7 @@
         /// Returns true if tasks are available to get
         /// </summary>
         bool CompleteTask(TaskItem task, TaskResult result);
+
+        event Action TasksAdded;
     }
 }

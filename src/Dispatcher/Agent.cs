@@ -160,6 +160,7 @@ namespace Dispatcher
 
                     if (result.success)
                     {
+                        Console.WriteLine($"Task started {task.Identifier}");
                         activeTasks.Add(task.Identifier, task);
                     }
                     else

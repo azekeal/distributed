@@ -10,6 +10,8 @@ namespace Dispatcher
     {
         private Queue<string> work = new Queue<string>();
 
+        public event Action TasksAdded;
+
         public int TaskCount => 1;
 
         public bool CompleteTask(TaskItem task, TaskResult result)
@@ -39,6 +41,7 @@ namespace Dispatcher
             lock (work)
             {
                 work.Enqueue(line);
+                TasksAdded?.Invoke();
             }
         }
     }

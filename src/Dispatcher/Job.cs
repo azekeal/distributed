@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Dispatcher
 {
-    public class Job
+    public class Job : IDisposable
     {
         public delegate void TasksAvailableHandler();
 
@@ -28,6 +28,7 @@ namespace Dispatcher
             this.Priority = priority;
             this.TaskCount = taskProvider.TaskCount;
             this.taskProvider = taskProvider;
+            this.taskProvider.TasksAdded += NotifyTasksAvailable;
         }
 
         public void Start()
@@ -54,7 +55,8 @@ namespace Dispatcher
                     capacity--;
                 }
 
-                if (list.Count < capacity)
+                // don't have enough tasks to give the requestor
+                if (capacity > 0)
                 {
                     TasksAvailable += notifyOnTasksAvailable;
                 }
@@ -100,6 +102,11 @@ namespace Dispatcher
                     NotifyTasksAvailable();
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            taskProvider.TasksAdded -= NotifyTasksAvailable;
         }
     }
 }

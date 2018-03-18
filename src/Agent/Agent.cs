@@ -19,6 +19,17 @@ namespace Agent
         public TaskResult[] StartTasks(IEnumerable<TaskItem> tasks) => Agent.Instance.StartTasks(tasks);
     }
 
+    public abstract class IAgent
+    {
+        protected void TaskCompleted(TaskItem item, TaskResult result)
+        {
+            throw new NotImplementedException();
+        }
+
+        public abstract Task<InitializationResult> Initialize(object config);
+        public abstract Task<TaskResult[]> StartTasks(TaskItem[] tasks);
+    }
+
     public class Agent : IDisposable
     {
         public static Agent Instance { get; private set; }
@@ -31,15 +42,17 @@ namespace Agent
         private HubConnection coordinator;
         private IHubContext dispatcherHubContext;
         private IDisposable host;
+        private IAgent agent;
         private List<string> dispatcherQueue = new List<string>();
         private string activeDispatcher;
         private object lockObj = new object();
 
-        public Agent()
+        public Agent(IAgent agent)
         {
             Instance = this;
             Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
             EndpointData = $"127.0.0.1:{Constants.Ports.AgentHost}";
+            this.agent = agent;
 
             StartListeningForDispatchers();
             RegisterWithCoordinator();
@@ -118,47 +131,18 @@ namespace Agent
             }
         }
 
-        internal TaskResult[] StartTasks(IEnumerable<TaskItem> items)
+        internal InitializationResult Initialize(object config)
         {
-            var tasks = items.ToArray();
-            if (tasks.Length > 0)
-            {
-                var results = tasks.Select(t => new TaskResult()
-                {
-                    success = true,
-                    errorMessage = null,
-                    data = null
-                }).ToArray();
-
-                Task.Delay(1000).ContinueWith(t =>
-                {
-                    foreach (var task in tasks)
-                    {
-                        ActiveDispatcher.TaskCompleted(task, new TaskResult()
-                        {
-                            success = true,
-                            errorMessage = null,
-                            data = task.Data
-                        });
-                    }
-                });
-
-                return results;
-            }
-            else
-            {
-                return new TaskResult[0] { };
-            }
+            var task = agent.Initialize(config);
+            task.Wait();
+            return task.Result;
         }
 
-        internal InitializationResult Initialize(object initializationConfig)
+        internal TaskResult[] StartTasks(IEnumerable<TaskItem> tasks)
         {
-            return new InitializationResult()
-            {
-                success = true,
-                errorMessage = null,
-                capacity = 1
-            };
+            var task = agent.StartTasks(tasks.ToArray());
+            task.Wait();
+            return task.Result;
         }
     }
 }

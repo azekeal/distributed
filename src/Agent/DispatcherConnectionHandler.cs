@@ -8,7 +8,5 @@ namespace Agent
         public DispatcherConnectionHandler(IHubContext dispatcherHubContext) : base(dispatcherHubContext)
         {
         }
-
-        public dynamic this[string name] => Connections.Group(name);
     }
 }

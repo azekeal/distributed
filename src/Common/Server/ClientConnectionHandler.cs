@@ -19,6 +19,8 @@ namespace Common
             Endpoints = new Dictionary<string, EndpointConnectionInfo>();
         }
 
+        public dynamic this[string name] => Connections.Group(name);
+
         public void OnConnect(string name, string connectionId, string endpointData)
         {
             if (Connections.Add(name, connectionId))

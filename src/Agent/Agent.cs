@@ -4,36 +4,13 @@ using Microsoft.Owin.Hosting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace Agent
 {
-    /// <summary>
-    /// Hub for dispatchers connecting to this agent
-    /// </summary>
-    public class DispatcherHub : EndpointHub
-    {
-        public DispatcherHub() => ClientConnectionHandler = Agent.Instance.DispatcherConnections;
-
-        public InitializationResult Initialize(object initializationConfig) => Agent.Instance.Initialize(initializationConfig);
-        public TaskResult[] StartTasks(IEnumerable<TaskItem> tasks) => Agent.Instance.StartTasks(tasks);
-    }
-
-    public abstract class IAgent
-    {
-        protected void TaskCompleted(TaskItem item, TaskResult result)
-        {
-            throw new NotImplementedException();
-        }
-
-        public abstract Task<InitializationResult> Initialize(object config);
-        public abstract Task<TaskResult[]> StartTasks(TaskItem[] tasks);
-    }
-
     public class Agent : IDisposable
     {
         public static Agent Instance { get; private set; }
-        public DispatcherConnectionHandler DispatcherConnections { get; private set; }
+        public ClientConnectionHandler DispatcherConnections { get; private set; }
         public string Identifier { get; private set; }
         public string EndpointData { get; private set; }
 
@@ -42,17 +19,19 @@ namespace Agent
         private HubConnection coordinator;
         private IHubContext dispatcherHubContext;
         private IDisposable host;
-        private IAgent agent;
+        private TaskExecutor taskExecutor;
         private List<string> dispatcherQueue = new List<string>();
         private string activeDispatcher;
         private object lockObj = new object();
 
-        public Agent(IAgent agent)
+        public Agent(TaskExecutor taskExecutor)
         {
             Instance = this;
             Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
             EndpointData = $"127.0.0.1:{Constants.Ports.AgentHost}";
-            this.agent = agent;
+
+            this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
+            this.taskExecutor.Agent = this;
 
             StartListeningForDispatchers();
             RegisterWithCoordinator();
@@ -70,7 +49,7 @@ namespace Agent
         {
             dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
 
-            DispatcherConnections = new DispatcherConnectionHandler(dispatcherHubContext);
+            DispatcherConnections = new ClientConnectionHandler(dispatcherHubContext);
             DispatcherConnections.EndpointAdded += AddDispatcher;
             DispatcherConnections.EndpointRemoved += RemoveDispatcher;
 
@@ -119,6 +98,11 @@ namespace Agent
         {
             lock (lockObj)
             {
+                if (activeDispatcher != null)
+                {
+                    ActiveDispatcher.SetAgentState(Identifier, false);
+                }
+
                 if (dispatcherQueue.Count > 0)
                 {
                     activeDispatcher = dispatcherQueue[0];
@@ -128,21 +112,31 @@ namespace Agent
                 {
                     activeDispatcher = null;
                 }
+
+                if (activeDispatcher != null)
+                {
+                    ActiveDispatcher.SetAgentState(Identifier, true);
+                }
             }
         }
 
         internal InitializationResult Initialize(object config)
         {
-            var task = agent.Initialize(config);
+            var task = taskExecutor.Initialize(config);
             task.Wait();
             return task.Result;
         }
 
         internal TaskResult[] StartTasks(IEnumerable<TaskItem> tasks)
         {
-            var task = agent.StartTasks(tasks.ToArray());
+            var task = taskExecutor.StartTasks(tasks.ToArray());
             task.Wait();
             return task.Result;
+        }
+
+        internal void CompleteTask(TaskItem task, TaskResult result)
+        {
+            ActiveDispatcher.CompleteTask(task, result);
         }
     }
 }

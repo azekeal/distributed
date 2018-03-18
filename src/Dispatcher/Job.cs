@@ -12,7 +12,7 @@ namespace Dispatcher
         public string Name { get; private set; }
         public int Priority { get; private set; }
         public int TaskCount { get; private set; }
-        public object Config { get; private set; }
+        public object Config => taskProvider.Config;
 
         public event Action Completed;
         public event Action TasksAvailable;
@@ -58,6 +58,8 @@ namespace Dispatcher
                 // don't have enough tasks to give the requestor
                 if (capacity > 0)
                 {
+                    Console.WriteLine("Waiting for tasks: " + notifyOnTasksAvailable);
+                    TasksAvailable -= notifyOnTasksAvailable;
                     TasksAvailable += notifyOnTasksAvailable;
                 }
 
@@ -81,10 +83,14 @@ namespace Dispatcher
         {
             lock (lockObj)
             {
+                Console.WriteLine("NotifyTasksAvailable: " + TasksAvailable);
+
                 TasksAvailable?.Invoke();
 
                 // clear the invocation list
                 TasksAvailable = null;
+
+                Console.WriteLine("Clearing waiting tasks");
             }
         }
 

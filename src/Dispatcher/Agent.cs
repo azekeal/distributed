@@ -30,7 +30,7 @@ namespace Dispatcher
 
             this.connection = new AgentConnection(dispatcher, info);
             this.connection.StateChanged += OnStateChanged;
-            this.connection.SetAgentIdentifier += SetAgentIdentifier;
+            this.connection.SetAgentState += SetAgentState;
             this.connection.TaskCompleted += OnTaskCompleted;
             this.connection.Start();
         }
@@ -51,19 +51,23 @@ namespace Dispatcher
                     Console.WriteLine(result.errorMessage);
                 }
 
+                activeTasks.Remove(task.Identifier);
                 activeJob.CompleteTask(task, result);
 
                 RequestTasks();
             }
         }
 
-        private void SetAgentIdentifier(string id)
+        private void SetAgentState(string agentId, bool activate)
         {
-            Identifier = id;
-            Console.WriteLine($"Connected to agent {Identifier}");
+            if (activate)
+            {
+                Identifier = agentId;
+                Console.WriteLine($"Connected to agent {Identifier}");
 
-            // Agent accepts, start giving it work
-            RequestTasks();
+                // Agent accepts, start giving it work
+                RequestTasks();
+            }
         }
 
         private void OnStateChanged(StateChange stateChange)
@@ -128,9 +132,12 @@ namespace Dispatcher
                     return;
                 }
 
-                if (activeTasks.Count < capacity)
+                Console.WriteLine($"{activeTasks.Count} + {pendingTasks.Count} < {capacity}");
+
+                var queued = pendingTasks.Count + activeTasks.Count;
+                if (queued < capacity)
                 {
-                    StartTasks(capacity - activeTasks.Count);
+                    StartTasks(capacity - queued);
                 }
             }
         }
@@ -143,7 +150,11 @@ namespace Dispatcher
             lock (lockObj)
             {
                 var tasks = activeJob.GetTasks(count, notifyOnTasksAvailable: RequestTasks);
-                tasks.ForEach(t => pendingTasks.Add(t.Identifier, t));
+                foreach (var task in tasks)
+                {
+                    Console.WriteLine("Add to pending: " + task);
+                    pendingTasks.Add(task.Identifier, task);
+                }
                 return tasks;
             }
         }
@@ -151,8 +162,19 @@ namespace Dispatcher
         private async void StartTasks(int count)
         {
             var tasks = GetNewTasks(count);
-            var results = await connection.StartTasks(tasks);
+            Console.WriteLine($"StartTasks: {tasks.Count}/{count}");
+
+            if (tasks.Count > 0)
+            {
+                var results = await connection.StartTasks(tasks);
+                ProcessStartTaskResults(tasks, results);
+            }
+        }
+
+        private void ProcessStartTaskResults(List<TaskItem> tasks, TaskResult[] results)
+        {
             Debug.Assert(results.Length == tasks.Count);
+            Console.WriteLine("ProcessStartTaskResults");
 
             lock (lockObj)
             {

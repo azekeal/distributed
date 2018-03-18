@@ -14,6 +14,8 @@ namespace Dispatcher
 
         public int TaskCount => 1;
 
+        public object Config => "This is the opaque job config object";
+
         public bool CompleteTask(TaskItem task, TaskResult result)
         {
             Console.WriteLine($"Task completed {task.Identifier} ({task.Data})");
@@ -40,6 +42,7 @@ namespace Dispatcher
         {
             lock (work)
             {
+                Console.WriteLine("Work Added: " + line);
                 work.Enqueue(line);
                 TasksAdded?.Invoke();
             }

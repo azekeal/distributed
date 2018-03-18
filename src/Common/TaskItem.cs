@@ -4,8 +4,8 @@ namespace Common
 {
     public struct TaskItem
     {
-        public readonly string Identifier;
-        public readonly object Data;
+        public string Identifier;
+        public object Data;
 
         public TaskItem(string identifier, object data)
         {
@@ -31,5 +31,7 @@ namespace Common
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Identifier);
             return hashCode;
         }
+
+        public override string ToString() => Identifier;
     }
 }

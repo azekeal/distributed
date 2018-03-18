@@ -6,32 +6,39 @@ using System.Threading.Tasks;
 
 namespace Agent
 {
-    public class MockAgent : IAgent
+    public class MockTaskExecutor : TaskExecutor
     {
         public override Task<InitializationResult> Initialize(object config)
         {
+            Console.WriteLine("Initialize: " + config);
             return Task.FromResult(new InitializationResult
             { 
                 success = true,
-                capacity = 1,
+                capacity = 3,
                 errorMessage = null,
             });
         }
 
         public override Task<TaskResult[]> StartTasks(TaskItem[] tasks)
         {
+            foreach (var task in tasks)
+            {
+                Console.WriteLine($"StartTask: {task.Identifier}, data:{task.Data}");
+            }
+
             var results = tasks.Select(t => new TaskResult()
             {
                 success = true,
                 errorMessage = null,
-                data = null
+                data = t.Data
             }).ToArray();
 
-            Task.Delay(1000).ContinueWith(t =>
+            Task.Delay(5000).ContinueWith(t =>
             {
                 foreach (var task in tasks)
                 {
-                    TaskCompleted(task, new TaskResult()
+                    Console.WriteLine($"CompleteTask: {task.Identifier}, data:{task.Data}");
+                    CompleteTask(task, new TaskResult()
                     {
                         success = true,
                         errorMessage = null,
@@ -48,7 +55,7 @@ namespace Agent
     {
         static void Main(string[] args)
         {
-            using (var agent = new Agent(new MockAgent()))
+            using (var agent = new Agent(new MockTaskExecutor()))
             {
                 var shutdown = new CancellationTokenSource();
 
@@ -61,10 +68,6 @@ namespace Agent
                         {
                             shutdown.Cancel();
                             break;
-                        }
-                        else
-                        {
-                            //coordinator.SendMessage("hello");
                         }
                     }
                 });

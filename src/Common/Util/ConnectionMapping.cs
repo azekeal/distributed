@@ -1,71 +1,76 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.AspNet.SignalR;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Common
 {
-    public class ConnectionMapping<T>
+    public class ConnectionMapping
     {
-        private readonly Dictionary<T, HashSet<string>> _connections = new Dictionary<T, HashSet<string>>();
+        private readonly Dictionary<string, HashSet<string>> connections = new Dictionary<string, HashSet<string>>();
 
-        public int Count => _connections.Count;
-        public IEnumerable<T> Keys => _connections.Keys;
+        public int Count => connections.Count;
+        public IEnumerable<string> Keys => connections.Keys;
+        public IHubContext HubContext { get; private set; }
 
-        public bool Add(T key, string connectionId)
+        public ConnectionMapping(IHubContext hubContext)
         {
-            lock (_connections)
+            HubContext = hubContext;
+        }
+
+        public bool Add(string key, string connectionId)
+        {
+            lock (connections)
             {
                 bool added = false;
-                if (!_connections.TryGetValue(key, out var connections))
+                if (!connections.TryGetValue(key, out var set))
                 {
-                    connections = new HashSet<string>();
-                    _connections.Add(key, connections);
+                    set = new HashSet<string>();
+                    connections.Add(key, set);
                     added = true;
                 }
 
-                lock (connections)
-                {
-                    connections.Add(connectionId);
-                }
+                set.Add(connectionId);
+                HubContext.Groups.Add(connectionId, key);
 
                 return added;
             }
         }
 
-        public IEnumerable<string> this[T key]
+        public dynamic Group(string key)
         {
-            get => GetConnections(key);
+            return HubContext.Clients.Group(key);
         }
 
 
-        public IEnumerable<string> GetConnections(T key)
+        public IEnumerable<string> ConnectionIds(string key)
         {
-            lock (_connections)
+            lock (connections)
             {
-                if (_connections.TryGetValue(key, out var connections))
+                if (connections.TryGetValue(key, out var set))
                 {
-                    return connections;
+                    return set;
                 }
 
                 return Enumerable.Empty<string>();
             }
         }
 
-        public bool Remove(T key, string connectionId)
+        public bool Remove(string key, string connectionId)
         {
-            lock (_connections)
+            lock (connections)
             {
-                if (!_connections.TryGetValue(key, out var connections))
+                if (!connections.TryGetValue(key, out var set))
                 {
                     return false;
                 }
 
-                lock (connections)
+                lock (set)
                 {
-                    connections.Remove(connectionId);
+                    set.Remove(connectionId);
 
-                    if (connections.Count == 0)
+                    if (set.Count == 0)
                     {
-                        _connections.Remove(key);
+                        connections.Remove(key);
                         return true;
                     }
                 }

@@ -61,13 +61,16 @@ namespace Dispatcher
         {
             Identifier = id;
             Console.WriteLine($"Connected to agent {Identifier}");
+
+            // Agent accepts, start giving it work
+            RequestTasks();
         }
 
         private void OnStateChanged(StateChange stateChange)
         {
             if (stateChange.NewState == ConnectionState.Connected)
             {
-                RequestTasks();
+                //RequestTasks();
             }
         }
 

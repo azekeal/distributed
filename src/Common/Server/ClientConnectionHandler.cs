@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.AspNet.SignalR;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,20 +7,21 @@ namespace Common
 {
     public class ClientConnectionHandler
     {
-        public ConnectionMapping<string> ConnectionIds { get; private set; }
+        public ConnectionMapping Connections { get; private set; }
         public Dictionary<string, EndpointConnectionInfo> Endpoints { get; private set; }
         public event Action<string, string, EndpointConnectionInfo> EndpointAdded;
         public event Action<string> EndpointRemoved;
+        public IHubContext HubContext => Connections.HubContext;
 
-        public ClientConnectionHandler()
+        public ClientConnectionHandler(IHubContext hubContext)
         {
-            ConnectionIds = new ConnectionMapping<string>();
+            Connections = new ConnectionMapping(hubContext);
             Endpoints = new Dictionary<string, EndpointConnectionInfo>();
         }
 
         public void OnConnect(string name, string connectionId, string endpointData)
         {
-            if (ConnectionIds.Add(name, connectionId))
+            if (Connections.Add(name, connectionId))
             {
                 var info = new EndpointConnectionInfo(name, endpointData);
                 lock (Endpoints)
@@ -33,7 +35,7 @@ namespace Common
 
         public void OnDisconnect(string name, string connectionId)
         {
-            if (ConnectionIds.Remove(name, connectionId))
+            if (Connections.Remove(name, connectionId))
             {
                 lock (Endpoints)
                 {
@@ -46,7 +48,7 @@ namespace Common
 
         public void OnReconnect(string name, string connectionId, string endpointData)
         {
-            if (!ConnectionIds.GetConnections(name).Contains(connectionId))
+            if (!Connections.ConnectionIds(name).Contains(connectionId))
             {
                 OnConnect(name, connectionId, endpointData);
             }

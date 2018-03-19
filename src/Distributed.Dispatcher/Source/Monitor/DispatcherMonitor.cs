@@ -5,7 +5,9 @@ using Distributed.Internal.Server;
 using Distributed.Internal.Util;
 using Microsoft.AspNet.SignalR;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Distributed.Monitor
 {
@@ -23,6 +25,7 @@ namespace Distributed.Monitor
             dispatcher.ActiveJobChanged += OnActiveJobChanged;
             dispatcher.Coordinator.EndpointAdded += OnAgentAdded;
             dispatcher.Coordinator.EndpointRemoved += OnAgentRemoved;
+            dispatcher.Coordinator.EndpointListUpdated += OnAgentListUpdated;
 
             context = GlobalHost.ConnectionManager.GetHubContext<MonitorHub>();
             connections = new ClientConnectionHandler(context);
@@ -31,31 +34,78 @@ namespace Distributed.Monitor
             webFileServer = new WebFileServer(hostUrl, Path.Combine(Environment.CurrentDirectory, @"Content\Dispatcher"));
         }
 
-        private void OnAgentAdded(EndpointConnectionInfo info)
+        private void OnAgentListUpdated(IEnumerable<EndpointConnectionInfo> list)
         {
-            var agent = dispatcher.Agents[info.name];
-            agent.TasksChanged += OnAgentTasksChanged;
+            foreach (var info in list)
+            {
+                OnAgentAdded(info);
+            }
         }
+
+        private void OnAgentAdded(EndpointConnectionInfo info) => AgentAdded(info, context.Clients.All);
+        private void OnAgentCapacityChanged(Agent agent, int capacity) => AgentCapacityChanged(agent, capacity, context.Clients.All);
+        private void OnAgentTasksChanged(Agent agent, TaskState state, IEnumerable<TaskItem> tasks) => AgentTasksChanged(agent, state, tasks.Select(t => t.Identifier), context.Clients.All);
 
         private void OnAgentRemoved(string name)
         {
             var agent = dispatcher.Agents[name];
             if (agent != null)
             {
-                agent.TasksChanged -= OnAgentTasksChanged;
+                agent.TaskStateChanged -= OnAgentTasksChanged;
+                agent.CapacityChanged -= OnAgentCapacityChanged;
             }
         }
 
-        private void OnAgentTasksChanged(Agent agent, TaskItem[] pending, TaskItem[] active)
-        {
-            UpdateAgentTasks(agent, pending, active, context.Clients.All);
-        }
 
         private void OnActiveJobChanged(Job obj) => UpdateJob(context.Clients.All);
 
-        public void UpdateAgentTasks(Agent agent, TaskItem[] pending, TaskItem[] active, dynamic group)
+        public void OnConnect(dynamic caller)
         {
-            group.setAgentTasks(agent.Identifier, pending, active);
+            UpdateJob(caller);
+
+            foreach (var agentId in dispatcher.Agents.Keys)
+            {
+                var agent = dispatcher.Agents[agentId];
+
+                AgentAdded(agent.Info, caller);
+                AgentCapacityChanged(agent, agent.Capacity, caller);
+
+                var pending = agent.PendingTasks;
+                if (pending.Any())
+                {
+                    AgentTasksChanged(agent, TaskState.Pending, pending, caller);
+                }
+
+                var active = agent.ActiveTasks;
+                if (active.Any())
+                {
+                    AgentTasksChanged(agent, TaskState.Active, pending, caller);
+                }
+            }
+        }
+
+        private void AgentTasksChanged(Agent agent, TaskState state, IEnumerable<string> tasks, dynamic caller)
+        {
+            caller.updateTask(agent.Identifier, state.ToString().ToLower(), tasks);
+        }
+
+        private void AgentCapacityChanged(Agent agent, int capacity, dynamic caller)
+        {
+            caller.setAgentCapacity(agent.Identifier, agent.Capacity);
+        }
+        
+        private void AgentAdded(EndpointConnectionInfo info, dynamic caller)
+        {
+            var agent = dispatcher.Agents[info.name];
+            agent.TaskStateChanged += OnAgentTasksChanged;
+            agent.CapacityChanged += OnAgentCapacityChanged;
+
+            caller.addAgent(info.name, info.endpoint);
+
+            if (agent.Capacity > 0)
+            {
+                AgentCapacityChanged(agent, agent.Capacity, caller);
+            }
         }
 
         public void UpdateJob(dynamic group)

@@ -7,7 +7,7 @@ namespace Distributed.Monitor
     {
         public override Task OnConnected()
         {
-            Dispatcher.Instance.Monitor.UpdateJob(Clients.Caller);
+            Dispatcher.Instance.Monitor.OnConnect(Clients.Caller);
             return base.OnConnected();
         }
 

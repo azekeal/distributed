@@ -20,9 +20,11 @@ namespace Distributed.Internal.Dispatcher
             return new Agent(dispatcher, info);
         }
 
-        public Agent this[string name] => (Agent)endpoints[name];
+        public Agent this[string name] => endpoints.TryGetValue(name, out var endpoint) ? (Agent)endpoint : null;
+        public IEnumerable<string> Keys => endpoints.Keys;
+        public IEnumerable<Agent> Values => endpoints.Values.Select(e => (Agent)e);
 
-        public IEnumerator<Agent> GetEnumerator() => endpoints.Values.Select(endpoint => (Agent)endpoint).GetEnumerator();
+        public IEnumerator<Agent> GetEnumerator() => Values.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     }
 }

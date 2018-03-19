@@ -8,21 +8,55 @@ using System.Linq;
 
 namespace Distributed.Internal.Dispatcher
 {
+    public enum TaskState
+    {
+        Pending,
+        Active,
+        Completed,
+        Failed
+    }
+
     public class Agent : Endpoint
     {
-        public string Identifier { get; private set; }
 
-        public event Action<Agent, TaskItem[], TaskItem[]> TasksChanged;
+        public string Identifier { get; private set; }
+        public int Capacity { get; private set; }
+
+        public event Action<Agent, TaskState, IEnumerable<TaskItem>> TaskStateChanged;
+        public event Action<Agent, int> CapacityChanged;
 
         private Distributed.Dispatcher dispatcher;
         private AgentConnection connection;
         private Dictionary<string, TaskItem> pendingTasks;
         private Dictionary<string, TaskItem> activeTasks;
-        private int capacity;
         private Job activeJob;
         private bool initialized;
         private bool disposed;
         private object lockObj = new object();
+
+
+        public IEnumerable<string> PendingTasks
+        {
+            get
+            {
+                lock (lockObj)
+                {
+                    return pendingTasks.Keys.ToArray();
+                }
+            }
+        }
+
+        public IEnumerable<string> ActiveTasks
+        {
+            get
+            {
+                lock (lockObj)
+                {
+                    return activeTasks.Keys.ToArray();
+                }
+            }
+        }
+
 
         public Agent(Distributed.Dispatcher dispatcher, EndpointConnectionInfo info) : base(info)
         {
@@ -61,7 +95,7 @@ namespace Distributed.Internal.Dispatcher
                 connection?.Dispose();
                 connection = null;
 
-                TasksChanged = null;
+                TaskStateChanged = null;
             }
         }
 
@@ -85,9 +119,12 @@ namespace Distributed.Internal.Dispatcher
                 activeJob.CompleteTask(task, result);
 
                 RequestTasks();
-            }
 
-            NotifyTasksChanged();
+                if (TaskStateChanged != null)
+                {
+                    TaskStateChanged.Invoke(this, TaskState.Completed, new TaskItem[] { task });
+                }
+            }
         }
 
         private void OnStateChanged(StateChange stateChange)
@@ -123,7 +160,8 @@ namespace Distributed.Internal.Dispatcher
                     Console.WriteLine($"Agent initialized {Identifier}");
 
                     initialized = true;
-                    capacity = initResult.capacity;
+                    Capacity = initResult.capacity;
+                    CapacityChanged?.Invoke(this, Capacity);
 
                     RequestTasks();
                 }
@@ -166,9 +204,9 @@ namespace Distributed.Internal.Dispatcher
                 }
 
                 var queued = pendingTasks.Count + activeTasks.Count;
-                if (queued < capacity)
+                if (queued < Capacity)
                 {
-                    StartTasks(capacity - queued);
+                    StartTasks(Capacity - queued);
                 }
             }
         }
@@ -201,21 +239,11 @@ namespace Distributed.Internal.Dispatcher
 
             if (tasks.Count > 0)
             {
+                TaskStateChanged?.Invoke(this, TaskState.Pending, tasks);
+
                 var results = await connection.StartTasks(tasks);
+
                 ProcessStartTaskResults(tasks, results);
-
-                NotifyTasksChanged();
-            }
-        }
-
-        private void NotifyTasksChanged()
-        {
-            lock (lockObj)
-            {
-                if (TasksChanged != null)
-                {
-                    TasksChanged.Invoke(this, pendingTasks.Values.ToArray(), activeTasks.Values.ToArray());
-                }
             }
         }
 
@@ -226,6 +254,9 @@ namespace Distributed.Internal.Dispatcher
 
             lock (lockObj)
             {
+                var successful = new List<TaskItem>();
+                var failed = new List<TaskItem>();
+
                 for (int i = 0; i < results.Length; ++i)
                 {
                     var task = tasks[i];
@@ -235,6 +266,8 @@ namespace Distributed.Internal.Dispatcher
                     {
                         Console.WriteLine($"Task started {task.Identifier}");
                         activeTasks.Add(task.Identifier, task);
+
+                        successful.Add(task);
                     }
                     else
                     {
@@ -242,9 +275,24 @@ namespace Distributed.Internal.Dispatcher
                         Console.WriteLine(result.errorMessage);
 
                         activeJob.CompleteTask(task, result);
+
+                        failed.Add(task);
                     }
 
                     pendingTasks.Remove(task.Identifier);
+                }
+
+                if (TaskStateChanged != null)
+                {
+                    if (successful.Count > 0)
+                    {
+                        TaskStateChanged.Invoke(this, TaskState.Active, successful);
+                    }
+
+                    if (failed.Count > 0)
+                    {
+                        TaskStateChanged.Invoke(this, TaskState.Failed, failed);
+                    }
                 }
             }
         }

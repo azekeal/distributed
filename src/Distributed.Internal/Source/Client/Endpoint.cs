@@ -5,14 +5,14 @@ namespace Distributed.Internal.Client
 {
     public class Endpoint : IDisposable
     {
-        public EndpointConnectionInfo info;
+        public EndpointConnectionInfo Info { get; private set; }
 
         public Endpoint(EndpointConnectionInfo info)
         {
-            this.info = info;
+            this.Info = info;
         }
 
-        public string Name => info.name;
+        public string Name => Info.name;
 
         public virtual void Dispose()
         {

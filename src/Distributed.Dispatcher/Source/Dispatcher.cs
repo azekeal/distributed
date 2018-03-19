@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Distributed
 {
-    public class Dispatcher : IDisposable
+    public sealed class Dispatcher : IDisposable
     {
         public string Identifier { get; private set; }
         public string EndpointData { get; private set; }

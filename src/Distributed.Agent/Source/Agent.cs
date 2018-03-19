@@ -10,7 +10,7 @@ using System.Linq;
 
 namespace Distributed
 {
-    public class Agent : IDisposable
+    public sealed class Agent : IDisposable
     {
         public static Agent Instance { get; private set; }
         public ClientConnectionHandler DispatcherConnections { get; private set; }

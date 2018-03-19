@@ -7,7 +7,7 @@ using System;
 
 namespace Distributed
 {
-    public class Coordinator : IDisposable
+    public sealed class Coordinator : IDisposable
     {
         public static Coordinator Instance { get;private set; }
 

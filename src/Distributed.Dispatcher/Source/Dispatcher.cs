@@ -11,20 +11,25 @@ namespace Distributed
         public string EndpointData { get; private set; }
         public CoordinatorConnection Coordinator { get; private set; }
         public Job ActiveJob { get; private set; }
+        public DispatcherConfig Config { get; private set; }
+
         public event Action<Job> ActiveJobChanged;
 
         private AgentPool agents;
         private SortedList<int, Job> jobQueue;
 
-        public Dispatcher()
+        public Dispatcher() : this(new DispatcherConfig()) { }
+
+        public Dispatcher(DispatcherConfig config)
         {
             this.Identifier = $"{Constants.Names.Dispatcher}_{Guid.NewGuid()}";
             this.EndpointData = $"127.0.0.1:{Constants.Ports.DispatcherHost}";
+            this.Config = config;
 
             this.agents = new AgentPool(this);
             this.jobQueue = new SortedList<int, Job>();
 
-            this.Coordinator = new CoordinatorConnection($"http://localhost:{Constants.Ports.CoordinatorHost}/signalr", Identifier, EndpointData, "DispatcherHub");
+            this.Coordinator = new CoordinatorConnection($"http://{config.CoordinatorAddress}/signalr", Identifier, EndpointData, "DispatcherHub");
             this.Coordinator.EndpointAdded += agents.Add;
             this.Coordinator.EndpointRemoved += agents.Remove;
             this.Coordinator.EndpointListUpdated += agents.Update;

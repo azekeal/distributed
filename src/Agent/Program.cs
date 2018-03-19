@@ -56,7 +56,21 @@ namespace Mock
     {
         static void Main(string[] args)
         {
-            using (var agent = new Agent(new MockTaskExecutor()))
+            var config = new AgentConfig();
+
+            if (args.Length > 0)
+            {
+                config.CoordinatorAddress = args[0];
+                Console.WriteLine($"CoordinatorAddress: http://{config.CoordinatorAddress}/");
+            }
+
+            if (args.Length > 1)
+            {
+                config.AgentPort = int.Parse(args[1]);
+                Console.WriteLine($"AgentHost: http://localhost:{config.AgentPort}/");
+            }
+
+            using (var agent = new Agent(config, new MockTaskExecutor()))
             {
                 var shutdown = new CancellationTokenSource();
 

@@ -16,6 +16,7 @@ namespace Distributed
         public ClientConnectionHandler DispatcherConnections { get; private set; }
         public string Identifier { get; private set; }
         public string EndpointData { get; private set; }
+        public AgentConfig Config { get; private set; }
 
         private dynamic ActiveDispatcher => activeDispatcher != null ? DispatcherConnections[activeDispatcher] : null;
 
@@ -27,11 +28,12 @@ namespace Distributed
         private string activeDispatcher;
         private object lockObj = new object();
 
-        public Agent(TaskExecutor taskExecutor)
+        public Agent(AgentConfig config, TaskExecutor taskExecutor)
         {
             Instance = this;
             Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
             EndpointData = $"127.0.0.1:{Constants.Ports.AgentHost}";
+            Config = config;
 
             this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
             this.taskExecutor.Agent = this;
@@ -46,8 +48,6 @@ namespace Distributed
             host.Dispose();
         }
 
-        public string HostUrl => $"http://localhost:{Constants.Ports.AgentHost}";
-
         private void StartListeningForDispatchers()
         {
             dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
@@ -56,16 +56,17 @@ namespace Distributed
             DispatcherConnections.EndpointAdded += AddDispatcher;
             DispatcherConnections.EndpointRemoved += RemoveDispatcher;
 
-            host = WebApp.Start(new StartOptions(HostUrl)
+            var hostUrl = $"http://localhost:{Config.AgentPort}";
+            host = WebApp.Start(new StartOptions(hostUrl)
             {
                 AppStartup = typeof(AgentStartup).FullName
             });
-            Console.WriteLine("Server running on {0}", HostUrl);
+            Console.WriteLine("Server running on {0}", hostUrl);
         }
 
         private void RegisterWithCoordinator()
         {
-            coordinator = new HubConnection($"http://localhost:{Constants.Ports.CoordinatorHost}/signalr", Identifier, EndpointData, "AgentHub");
+            coordinator = new HubConnection($"http://{Config.CoordinatorAddress}/signalr", Identifier, EndpointData, "AgentHub");
             coordinator.Start();
         }
 

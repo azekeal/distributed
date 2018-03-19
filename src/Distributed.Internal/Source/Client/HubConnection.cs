@@ -26,7 +26,6 @@ namespace Distributed.Internal.Client
             hubConnection.StateChanged += OnStateChanged;
             hubConnection.Credentials = CredentialCache.DefaultCredentials;
             hubConnection.Headers.Add("id", id);
-            hubConnection.Headers.Add("endpoint", endpointData);
 
             CreateProxy();
         }

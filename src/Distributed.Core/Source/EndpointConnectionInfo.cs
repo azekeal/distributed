@@ -3,14 +3,12 @@
     public struct EndpointConnectionInfo
     {
         public string name;
-        public string endpointData;
 
-        public EndpointConnectionInfo(string name, string endpointData)
+        public EndpointConnectionInfo(string name)
         {
             this.name = name;
-            this.endpointData = endpointData;
         }
 
-        public override string ToString() => $"{name}, {endpointData}";
+        public override string ToString() => name;
     }
 }

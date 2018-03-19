@@ -55,14 +55,21 @@ namespace Mock
     {
         static void Main(string[] args)
         {
-            var taskProvider = new StdInTaskProvider();
+            var config = new DispatcherConfig();
 
-            using (var dispatcher = new Dispatcher())
+            if (args.Length > 0)
+            {
+                config.CoordinatorAddress = args[0];
+                Console.WriteLine($"CoordinatorAddress: http://{config.CoordinatorAddress}/");
+            }
+
+            using (var dispatcher = new Dispatcher(config))
             {
                 var shutdown = new CancellationTokenSource();
 
                 Task.Run(() =>
                 {
+                    var taskProvider = new StdInTaskProvider();
                     dispatcher.AddJob(taskProvider);
 
                     while (true)

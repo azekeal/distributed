@@ -78,6 +78,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Source\DispatcherConfig.cs" />
     <Compile Include="Source\Dispatcher.cs" />
     <Compile Include="Source\Internal\Agent.cs" />
     <Compile Include="Source\Internal\AgentConnection.cs" />

@@ -7,7 +7,15 @@ namespace Mock
     {
         static void Main(string[] args)
         {
-            using (var coordinator = new Coordinator())
+            var config = new CoordinatorConfig();
+
+            if (args.Length > 0)
+            {
+                config.CoordinatorPort = int.Parse(args[1]);
+                Console.WriteLine($"CoordinatorHost: http://localhost:{config.CoordinatorPort}/");
+            }
+
+            using (var coordinator = new Coordinator(config))
             {
                 Console.ReadLine();
             }

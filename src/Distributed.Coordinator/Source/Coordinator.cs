@@ -7,20 +7,27 @@ using System;
 
 namespace Distributed
 {
+    public class CoordinatorConfig
+    {
+        public int CoordinatorPort = Constants.Ports.CoordinatorHost;
+    }
+
     public sealed class Coordinator : IDisposable
     {
         public static Coordinator Instance { get;private set; }
-
-        public ClientConnectionHandler DispatcherConnections;
-        public ClientConnectionHandler AgentConnections;
+        public ClientConnectionHandler DispatcherConnections { get; private set; }
+        public ClientConnectionHandler AgentConnections { get; private set; }
+        public CoordinatorConfig Config { get; private set; }
 
         private IHubContext dispatcherHubContext;
         private IHubContext agentHubContext;
         private IDisposable host;
 
-        public Coordinator()
+        public Coordinator() : this(new CoordinatorConfig()) { }
+        public Coordinator(CoordinatorConfig config)
         {
             Instance = this;
+            Config = config;
 
             StartListeningForDispatchersAndAgents();
         }
@@ -44,7 +51,7 @@ namespace Distributed
             Console.WriteLine("Server running on {0}", HostUrl);
         }
 
-        public string HostUrl => $"http://localhost:{Constants.Ports.CoordinatorHost}";
+        public string HostUrl => $"http://localhost:{Config.CoordinatorPort}";
 
         public void Dispose()
         {

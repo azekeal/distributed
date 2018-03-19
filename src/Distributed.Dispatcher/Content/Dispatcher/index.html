@@ -4,62 +4,12 @@
     <meta http-equiv="Pragma" content="no-cache">
     <title>Dispatchers</title>
     <style type="text/css">
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 0px;
-            margin: 0px;
         }
 
-        .jobs {
-            display: none;
-            padding: 5px;
-            margin: 5px;
-        }
-
-        .agents {
-            display: none;
-            padding: 5px;
-            margin: 5px;
-        }
-
-        .container {
-            background-color: #99CCFF;
-            border: thick solid #808080;
-            overflow: scroll auto;
-        }
-
-        .template {
-            display: none;
-        }
-
-        #agent-task-container {
-            background-color: #e1e1e1;
-            width: 100%;
-            padding: 5px;
-        }
-
-        .agent-name, .agent-id {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            white-space: nowrap;
-            padding: 2px;
-            margin: 2px;
-            text-align: right;
-        }
-
-        .agent-id {
-            font-size: xx-small;
-        }
-
-        .agent-task-set {
-            position: relative;
-            white-space: nowrap;
-            border: 1px solid black;
-            border-radius: 5px;
-            padding: 5px;
-            margin: 2px;
-            width: 100%;
-            overflow-x: scroll;
+        .task-cancelled {
+            border-color: #6f670f !important;
             background: #ffffff; /* Old browsers */
             background: -moz-linear-gradient(top, #ffffff 0%, #f1f1f1 50%, #e1e1e1 51%, #f6f6f6 100%); /* FF3.6-15 */
             background: -webkit-linear-gradient(top, #ffffff 0%,#f1f1f1 50%,#e1e1e1 51%,#f6f6f6 100%); /* Chrome10-25,Safari5.1-6 */
@@ -67,25 +17,8 @@
             filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#ffffff', endColorstr='#f6f6f6',GradientType=0 );
         }
 
-        .agent-task-thread {
-            position: relative;
-            padding: 3px;
-            height: 20px;
-        }
-
-        .agent-task {
-            position: absolute;
-            white-space: nowrap;
-            border: 1px solid black;
-            padding: 2px;
-            margin: 2px;
-            border-radius: 5px;
-            height: 10px;
-            mar
-        }
-
         .task-pending {
-            border-color: #6f670f;
+            border-color: #6f670f !important;
             background: #ffffff; /* Old browsers */
             background: -moz-linear-gradient(top, #ffffff 0%, #f1f1f1 50%, #e1e1e1 51%, #f6f6f6 100%); /* FF3.6-15 */
             background: -webkit-linear-gradient(top, #ffffff 0%,#f1f1f1 50%,#e1e1e1 51%,#f6f6f6 100%); /* Chrome10-25,Safari5.1-6 */
@@ -94,7 +27,7 @@
         }
 
         .task-active {
-            border-color: #006bff;
+            border-color: #006bff !important;
             background: #3b679e; /* Old browsers */
             background: -moz-linear-gradient(top, #3b679e 0%, #2b88d9 50%, #207cca 51%, #7db9e8 100%); /* FF3.6-15 */
             background: -webkit-linear-gradient(top, #3b679e 0%,#2b88d9 50%,#207cca 51%,#7db9e8 100%); /* Chrome10-25,Safari5.1-6 */
@@ -103,7 +36,7 @@
         }
 
         .task-completed {
-            border-color: #0c6b08;
+            border-color: #0c6b08 !important;
             background: #bfd255; /* Old browsers */
             background: -moz-linear-gradient(top, #bfd255 0%, #8eb92a 50%, #72aa00 51%, #9ecb2d 100%); /* FF3.6-15 */
             background: -webkit-linear-gradient(top, #bfd255 0%,#8eb92a 50%,#72aa00 51%,#9ecb2d 100%); /* Chrome10-25,Safari5.1-6 */
@@ -112,7 +45,7 @@
         }
 
         .task-failed {
-            border-color: #880000;
+            border-color: #880000 !important;
             background: #f85032; /* Old browsers */
             background: -moz-linear-gradient(top, #f85032 0%, #f16f5c 50%, #f6290c 51%, #f02f17 71%, #e73827 100%); /* FF3.6-15 */
             background: -webkit-linear-gradient(top, #f85032 0%,#f16f5c 50%,#f6290c 51%,#f02f17 71%,#e73827 100%); /* Chrome10-25,Safari5.1-6 */
@@ -122,53 +55,78 @@
     </style>
 </head>
 <body>
-    <div id="agent-task-template" class="template">
-        <table>
-            <tr class="agent-container">
-                <td scope="row">
-                    <div><a class="agent-name">Agent</a></div>
-                    <div class="agent-id"></div>
-                </td>
-                <td class="agent-task-set"></td>
-            </tr>
-        </table>
-
-        <div class="agent-task-thread"></div>
-        <div class="agent-task template"></div>
+    <div class="Title">
+        <h1>Dispatcher</h1>
     </div>
-
-    <table id="agent-task-container"></table>
-
-    <div class="jobs">
-        <h3>Active Job:</h3>
-        <div id="job"></div>
-    </div>
-    <div class="agents">
-        <h3>Agents:</h3>
-        <div id="agents"></div>
+    <div id="visualization">
+        <div class="menu">
+            <input type="button" id="fit" value="Fit" />
+        </div>
     </div>
 
     <!--Script references. -->
-    <!--Reference the jQuery library. -->
-    <script src="Scripts/jquery-1.6.4.min.js"></script>
-    <!--Reference the SignalR library. -->
-    <script src="Scripts/jquery.signalR-2.2.3.min.js"></script>
+    <script src="scripts/jquery-1.6.4.min.js"></script>
+    <script src="scripts/jquery.signalR-2.2.3.min.js"></script>
+
+    <script src="scripts/vis/vis.js"></script>
+    <link href="scripts/vis/vis.min.css" rel="stylesheet" type="text/css" />
+    <style type="text/css">
+
+        #vizualization {
+            position: relative;
+        }
+
+        .menu {
+            position: absolute;
+            top: 0;
+            right: 0;
+            margin: 10px;
+            z-index: 9999;
+        }
+
+        input#fit {
+            background: transparent;
+            border: 2px solid black;
+        }
+
+        .vis-item.vis-range {
+            border-radius: 5px !important;
+            height: 16px;
+        }
+    </style>
+
     <!--Reference the autogenerated SignalR hub script. -->
     <script src="http://localhost:9010/signalr/hubs"></script>
     <!--Add script to update the page and send messages.-->
     <script type="text/javascript">
         $(function () {
             $.connection.hub.url = "http://localhost:9010/signalr";
-
-            // Declare a proxy to reference the hub.
-            var chat = $.connection.monitorHub;
+            var monitor = $.connection.monitorHub;
 
             const activeSet = new Set();
             const startTime = Date.now();
             const pixelsPerSecond = 0.01;
             const taskSpacingPx = 10;
+            var nextTaskId = 1;
+            var nextGroupId = 1;
+            var agents = {};
+            var agentTasks = {};
 
-            chat.client.setJob = function (name, priority, config, taskCount) {
+            var container = document.getElementById('visualization');
+            var items = new vis.DataSet([]);
+            var groups = new vis.DataSet([]);
+
+            var options = {
+                start: Date.now(),
+                end: Date.now() + 1000 * 100,
+                align: 'left',
+                min: Date.now(),
+                minHeight: '5000px',
+                zoomMax: 1000 * 60 * 60 * 24 * 2
+            };
+            var timeline = new vis.Timeline(container, items, groups, options);
+
+            monitor.client.setJob = function (name, priority, config, taskCount) {
                 $('#job').empty();
                 $('#job').append("<div>Name:" + name + "</div>");
                 $('#job').append("<div>Priority:" + priority + "</div>");
@@ -176,93 +134,66 @@
                 $('#job').append("<div>TaskCount:" + taskCount + "</div>");
             };
 
+            monitor.client.addAgent = function (name, endpoint) {
+                var agent = agents[name];
+                if (!agent) {
+                    agent = {
+                        groupId: nextGroupId++,
+                        endpoint: endpoint,
+                        capacity: 0
+                    };
 
-            chat.client.addAgent = function (name, endpoint) {
-                var agentContainer = $('#agent-task-template .agent-container').clone();
-
-                var agentName = agentContainer.find('.agent-name');
-                agentName.text("Agent");
-                agentName.attr('href', "http://" + endpoint + "/");
-
-                agentContainer.find('.agent-id').text(name);
-                agentContainer.attr('id', name);
-                agentContainer.appendTo('#agent-task-container');
-            };
-
-            chat.client.setAgentCapacity = function (name, capacity) {
-                var agentContainer = $('#' + name);
-                agentContainer.find('.agent-name').text("Agent (" + capacity + " threads)");
-                var taskSet = agentContainer.find('.agent-task-set');
-
-                var currCapacity = taskSet.data('capacity') || 0;
-                for (var i = currCapacity; i < capacity; ++i) {
-                    var thread = $('#agent-task-template .agent-task-thread').clone();
-                    thread.addClass('thread' + i);
-                    thread.appendTo(taskSet);
-                    taskSet.data('thread' + i, thread);
-                }
-                taskSet.data('capacity', capacity);
-            };
-
-
-            var attachToAvailableThread = (container, element) => {
-                if (element.hasClass('taskActive')) {
-                    return;
-                }
-                var capacity = container.data('capacity');
-                for (var i = 0; i < capacity; ++i) {
-                    var thread = container.data('thread' + i);
-                    if (!thread.data('active')) {
-                        thread.data('active', element.attr('id'));
-                        element.addClass('taskActive');
-                        thread.append(element);
-                        return;
-                    }
+                    agents[name] = agent;
+                    groups.add({ id: agent.groupId, content: '<a href="http://' + agent.endpoint + '">Agent</a>' });
                 }
             };
 
-            var completeActiveTask = (container, element) => {
-                var capacity = container.data('capacity');
-                for (var i = 0; i < capacity; ++i) {
-                    var thread = container.data('thread' + i);
-                    if (thread.data('active') == element.attr('id')) {
-                        thread.removeData('active');
-                        element.removeClass('taskActive');
-                        return;
-                    }
-                }
+            monitor.client.setAgentCapacity = function (name, capacity) {
+                var agent = agents[name];
+                agent.capacity = capacity;
+
+                groups.update({
+                    id: agent.groupId,
+                    content: '<a href="http://' + agent.endpoint + '">Agent</a> (' + capacity + ' threads)',
+                });
             };
 
-
-            chat.client.updateTask = function (name, state, tasks) {
-                var agentTaskSet = $('#' + name + ' .agent-task-set');
+            monitor.client.updateTask = function (name, state, tasks) {
+                var agent = agents[name];
 
                 for (var i in tasks) {
                     var taskId = tasks[i];
-                    var task = $('#' + taskId);
-                    if (!task.length) {
-                        var task = $('#agent-task-template .agent-task').clone();
-                        task.attr('id', taskId);
+                    var task = agentTasks[taskId];
 
-                        var taskStartTime = Date.now();
-                        task.data('startTime', taskStartTime);
-                        task.offset({ left: pixelsPerSecond * (taskStartTime - startTime) });
-                        task.appendTo(agentTaskSet);
+                    if (!task) {
+                        task = {
+                            id: nextTaskId++,
+                            startTime: Date.now(),
+                            endTime: Date.now(),
+                        };
+                        agentTasks[taskId] = task;
+
+                        items.add({
+                            id: task.id,
+                            content: "",
+                            title: taskId,
+                            start: new Date(task.startTime),
+                            group: agent.groupId,
+                        });
                     }
 
                     if (state == 'active') {
-                        attachToAvailableThread(agentTaskSet, task);
-                        activeSet.add(taskId);
-
+                        activeSet.add(task.id);
                     } else {
-                        completeActiveTask(agentTaskSet, task);
-                        activeSet.delete(taskId);
+                        activeSet.delete(task.id);
                     }
 
-                    task.removeClass("task-pending task-active task-complete task-failed").addClass('task-' + state);
+                    items.update({ id: task.id, className: 'task-' + state });
                 }
             };
 
+
+            $('#fit').click(() => timeline.fit());
 
             // Get the user name and store it to prepend to messages.
             //$('#displayname').val(prompt('Enter your name:', ''));
@@ -273,25 +204,16 @@
 
                 var updateActiveTasks = () => {
                     setTimeout(arguments.callee, 10);
-
                     activeSet.forEach(taskId => {
-                        var task = $('#' + taskId);
-                        var elapsed = Date.now() - task.data('startTime');
-                        var width = pixelsPerSecond * elapsed - taskSpacingPx;
-                        if (width > 0) {
-                            task.removeClass('template');
-                            task.width(width + 'px');
-                        }
+                        items.update({ id: taskId, end: Date.now() });
                     });
-
-                    $('.agent-task-set').scrollLeft(10000000);
                 };
                 updateActiveTasks();
 
 
                 $('#sendmessage').click(function () {
                     // Call the Send method on the hub.
-                    chat.server.send($('#displayname').val(), $('#message').val());
+                    monitor.server.send($('#displayname').val(), $('#message').val());
                     // Clear text box and reset focus for next comment.
                     $('#message').val('').focus();
                 });

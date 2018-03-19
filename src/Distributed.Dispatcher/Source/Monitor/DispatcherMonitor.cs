@@ -24,7 +24,6 @@ namespace Distributed.Monitor
 
             dispatcher.ActiveJobChanged += OnActiveJobChanged;
             dispatcher.Coordinator.EndpointAdded += OnAgentAdded;
-            dispatcher.Coordinator.EndpointRemoved += OnAgentRemoved;
             dispatcher.Coordinator.EndpointListUpdated += OnAgentListUpdated;
 
             context = GlobalHost.ConnectionManager.GetHubContext<MonitorHub>();
@@ -45,16 +44,6 @@ namespace Distributed.Monitor
         private void OnAgentAdded(EndpointConnectionInfo info) => AgentAdded(info, context.Clients.All);
         private void OnAgentCapacityChanged(Agent agent, int capacity) => AgentCapacityChanged(agent, capacity, context.Clients.All);
         private void OnAgentTasksChanged(Agent agent, TaskState state, IEnumerable<TaskItem> tasks) => AgentTasksChanged(agent, state, tasks.Select(t => t.Identifier), context.Clients.All);
-
-        private void OnAgentRemoved(string name)
-        {
-            var agent = dispatcher.Agents[name];
-            if (agent != null)
-            {
-                agent.TaskStateChanged -= OnAgentTasksChanged;
-                agent.CapacityChanged -= OnAgentCapacityChanged;
-            }
-        }
 
 
         private void OnActiveJobChanged(Job obj) => UpdateJob(context.Clients.All);
@@ -79,7 +68,7 @@ namespace Distributed.Monitor
                 var active = agent.ActiveTasks;
                 if (active.Any())
                 {
-                    AgentTasksChanged(agent, TaskState.Active, pending, caller);
+                    AgentTasksChanged(agent, TaskState.Active, active, caller);
                 }
             }
         }
@@ -99,12 +88,31 @@ namespace Distributed.Monitor
             var agent = dispatcher.Agents[info.name];
             agent.TaskStateChanged += OnAgentTasksChanged;
             agent.CapacityChanged += OnAgentCapacityChanged;
+            agent.Disposed += OnAgentDisposed;
 
             caller.addAgent(info.name, info.endpoint);
 
             if (agent.Capacity > 0)
             {
                 AgentCapacityChanged(agent, agent.Capacity, caller);
+            }
+        }
+
+        private void OnAgentDisposed(Agent agent)
+        {
+            agent.TaskStateChanged -= OnAgentTasksChanged;
+            agent.CapacityChanged -= OnAgentCapacityChanged;
+
+            var pending = agent.PendingTasks;
+            if (pending.Any())
+            {
+                AgentTasksChanged(agent, TaskState.Cancelled, pending, context.Clients.All);
+            }
+
+            var active = agent.ActiveTasks;
+            if (active.Any())
+            {
+                AgentTasksChanged(agent, TaskState.Cancelled, active, context.Clients.All);
             }
         }
 

@@ -13,7 +13,8 @@ namespace Distributed.Internal.Dispatcher
         Pending,
         Active,
         Completed,
-        Failed
+        Failed,
+        Cancelled
     }
 
     public class Agent : Endpoint
@@ -24,6 +25,7 @@ namespace Distributed.Internal.Dispatcher
 
         public event Action<Agent, TaskState, IEnumerable<TaskItem>> TaskStateChanged;
         public event Action<Agent, int> CapacityChanged;
+        public event Action<Agent> Disposed;
 
         private Distributed.Dispatcher dispatcher;
         private AgentConnection connection;
@@ -77,6 +79,8 @@ namespace Distributed.Internal.Dispatcher
         {
             lock (lockObj)
             {
+                Disposed?.Invoke(this);
+
                 disposed = true;
 
                 activeJob?.CancelTasks(pendingTasks.Values);

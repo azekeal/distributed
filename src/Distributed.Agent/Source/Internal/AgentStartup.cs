@@ -1,8 +1,8 @@
 ﻿using Owin;
 
-namespace Dispatcher
+namespace Distributed.Internal
 {
-    public class Startup
+    public class AgentStartup
     {
         public void Configuration(IAppBuilder app)
         {

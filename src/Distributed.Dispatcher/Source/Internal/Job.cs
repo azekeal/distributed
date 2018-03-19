@@ -1,14 +1,14 @@
-﻿using Common;
+﻿using Distributed.Core;
 using System;
 using System.Collections.Generic;
 
-namespace Dispatcher
+namespace Distributed.Internal.Dispatcher
 {
     public class Job : IDisposable
     {
         public delegate void TasksAvailableHandler();
 
-        public Dispatcher Dispatcher { get; private set; }
+        public Distributed.Dispatcher Dispatcher { get; private set; }
         public string Name { get; private set; }
         public int Priority { get; private set; }
         public int TaskCount { get; private set; }
@@ -21,7 +21,7 @@ namespace Dispatcher
         private Queue<TaskItem> returnedTasks = new Queue<TaskItem>();
         private ITaskProvider taskProvider;
 
-        public Job(Dispatcher dispatcher, ITaskProvider taskProvider, int priority)
+        public Job(Distributed.Dispatcher dispatcher, ITaskProvider taskProvider, int priority)
         {
             this.Dispatcher = dispatcher;
             this.Name = $"job_{Guid.NewGuid()}";
@@ -85,10 +85,10 @@ namespace Dispatcher
             {
                 Console.WriteLine("NotifyTasksAvailable: " + TasksAvailable);
 
-                TasksAvailable?.Invoke();
-
                 // clear the invocation list
+                var listToNotify = TasksAvailable;
                 TasksAvailable = null;
+                listToNotify?.Invoke();
 
                 Console.WriteLine("Clearing waiting tasks");
             }

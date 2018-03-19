@@ -1,16 +1,15 @@
-﻿using Microsoft.Owin;
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Coordinator")]
+[assembly: AssemblyTitle("Dispatcher.Agent")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Coordinator")]
+[assembly: AssemblyProduct("Dispatcher.Agent")]
 [assembly: AssemblyCopyright("Copyright ©  2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -21,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("3efccc7e-bb14-4482-be17-285c4f3beeff")]
+[assembly: Guid("3623CA64-CF08-4A8B-B5E6-5C3D0EB24384")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -35,3 +34,6 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+
+
+// Any connection or hub wire up and configuration should go here

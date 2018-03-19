@@ -1,7 +1,8 @@
-﻿using Common;
+﻿using Distributed.Core;
+using Distributed.Internal.Server;
 using System.Collections.Generic;
 
-namespace Agent
+namespace Distributed.Internal
 {
     /// <summary>
     /// Hub for dispatchers connecting to this agent

@@ -1,14 +1,13 @@
-﻿using Common;
+﻿using Distributed.Core;
 using Microsoft.AspNet.SignalR.Client;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using HubConnection = Distributed.Internal.Client.HubConnection;
 
-namespace Dispatcher
+namespace Distributed.Internal.Dispatcher
 {
-    using System.Collections.Generic;
-    using System.Linq;
-    using HubConnection = Common.HubConnection;
-
     public class AgentConnection : IDisposable
     {
         public event Action<StateChange> StateChanged;
@@ -16,7 +15,7 @@ namespace Dispatcher
         public event Action<TaskItem, TaskResult> TaskCompleted;
         private HubConnection connection;
 
-        public AgentConnection(Dispatcher dispatcher, EndpointConnectionInfo info)
+        public AgentConnection(Distributed.Dispatcher dispatcher, EndpointConnectionInfo info)
         {
             connection = new HubConnection($"http://localhost:{Constants.Ports.AgentHost}/signalr", dispatcher.Identifier, dispatcher.EndpointData, "DispatcherHub");
             connection.StateChanged += s => StateChanged?.Invoke(s);

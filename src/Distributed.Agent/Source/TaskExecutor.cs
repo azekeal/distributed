@@ -1,7 +1,7 @@
-﻿using Common;
+﻿using Distributed.Core;
 using System.Threading.Tasks;
 
-namespace Agent
+namespace Distributed
 {
     public abstract class TaskExecutor
     {

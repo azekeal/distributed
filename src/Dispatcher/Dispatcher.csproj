@@ -75,15 +75,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AgentConnection.cs" />
-    <Compile Include="Agent.cs" />
-    <Compile Include="AgentPool.cs" />
-    <Compile Include="Coordinator.cs" />
-    <Compile Include="Dispatcher.cs" />
-    <Compile Include="Job.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Startup.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -97,9 +90,13 @@
     <Content Include="Scripts\jquery.signalR-2.2.3.min.js" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj">
-      <Project>{2014089e-9b9f-4b76-a290-f15b3c3408d9}</Project>
-      <Name>Common</Name>
+    <ProjectReference Include="..\Distributed.Core\Distributed.Core.csproj">
+      <Project>{18374890-8837-410a-8ff8-380983574929}</Project>
+      <Name>Distributed.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Distributed.Dispatcher\Distributed.Dispatcher.csproj">
+      <Project>{4a9ec2d0-9690-442c-ae03-92aab90f5419}</Project>
+      <Name>Distributed.Dispatcher</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

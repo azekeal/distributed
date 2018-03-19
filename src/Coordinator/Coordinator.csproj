@@ -72,10 +72,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Coordinator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Startup.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
@@ -91,9 +89,9 @@
     <Content Include="Scripts\jquery.signalR-2.2.3.min.js" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj">
-      <Project>{2014089e-9b9f-4b76-a290-f15b3c3408d9}</Project>
-      <Name>Common</Name>
+    <ProjectReference Include="..\Distributed.Coordinator\Distributed.Coordinator.csproj">
+      <Project>{ba2f31ef-3c81-46d6-9b1f-b22307a8f164}</Project>
+      <Name>Distributed.Coordinator</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

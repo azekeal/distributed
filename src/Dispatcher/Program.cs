@@ -1,10 +1,11 @@
-﻿using Common;
+﻿using Distributed;
+using Distributed.Core;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Dispatcher
+namespace Mock
 {
     public class StdInTaskProvider : ITaskProvider
     {
@@ -54,12 +55,9 @@ namespace Dispatcher
     {
         static void Main(string[] args)
         {
-            // TODO: parse args
-            var config = new Config();
             var taskProvider = new StdInTaskProvider();
 
-
-            using (var dispatcher = new Dispatcher(config))
+            using (var dispatcher = new Dispatcher())
             {
                 var shutdown = new CancellationTokenSource();
 

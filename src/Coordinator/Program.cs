@@ -1,8 +1,7 @@
-﻿using Common;
-using Microsoft.Owin.Hosting;
+﻿using Distributed;
 using System;
 
-namespace Coordinator
+namespace Mock
 {
     class Program
     {

@@ -2,9 +2,9 @@
 using Owin;
 using System;
 
-namespace Coordinator
+namespace Distributed.Internal
 {
-    public class Startup
+    public class CoordinatorStartup
     {
         public void Configuration(IAppBuilder app)
         {

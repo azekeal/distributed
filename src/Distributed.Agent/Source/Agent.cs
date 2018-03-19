@@ -2,6 +2,7 @@
 using Distributed.Internal;
 using Distributed.Internal.Client;
 using Distributed.Internal.Server;
+using Distributed.Internal.Util;
 using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Hosting;
 using System;
@@ -15,7 +16,7 @@ namespace Distributed
         public static Agent Instance { get; private set; }
         public ClientConnectionHandler DispatcherConnections { get; private set; }
         public string Identifier { get; private set; }
-        public string EndpointData { get; private set; }
+        public string Endpoint { get; private set; }
         public AgentConfig Config { get; private set; }
 
         private dynamic ActiveDispatcher => activeDispatcher != null ? DispatcherConnections[activeDispatcher] : null;
@@ -32,7 +33,7 @@ namespace Distributed
         {
             Instance = this;
             Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
-            EndpointData = $"127.0.0.1:{Constants.Ports.AgentHost}";
+            Endpoint = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
             Config = config;
 
             this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
@@ -56,7 +57,7 @@ namespace Distributed
             DispatcherConnections.EndpointAdded += AddDispatcher;
             DispatcherConnections.EndpointRemoved += RemoveDispatcher;
 
-            var hostUrl = $"http://localhost:{Config.AgentPort}";
+            var hostUrl = GetHostUrl();
             host = WebApp.Start(new StartOptions(hostUrl)
             {
                 AppStartup = typeof(AgentStartup).FullName
@@ -64,9 +65,22 @@ namespace Distributed
             Console.WriteLine("Server running on {0}", hostUrl);
         }
 
+        private string GetHostUrl()
+        {
+            if (Permissions.IsAdministrator())
+            {
+                return $"http://*:{Config.AgentPort}";
+            }
+            else
+            {
+                Console.WriteLine("WARNING: Coordinator needs to be run with admin permissions to be able to serve other computers.");
+                return $"http://localhost:{Config.AgentPort}";
+            }
+        }
+
         private void RegisterWithCoordinator()
         {
-            coordinator = new HubConnection($"http://{Config.CoordinatorAddress}/signalr", Identifier, EndpointData, "AgentHub");
+            coordinator = new HubConnection($"http://{Config.CoordinatorAddress}/signalr", Identifier, Endpoint, "AgentHub");
             coordinator.Start();
         }
 

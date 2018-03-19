@@ -82,16 +82,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Scripts\jquery-1.6.4-vsdoc.js" />
-    <Content Include="Scripts\jquery-1.6.4.js" />
-    <Content Include="Scripts\jquery-1.6.4.min.js" />
-    <Content Include="Scripts\jquery.signalR-2.2.3.js" />
-    <Content Include="Scripts\jquery.signalR-2.2.3.min.js" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Distributed.Coordinator\Distributed.Coordinator.csproj">
       <Project>{ba2f31ef-3c81-46d6-9b1f-b22307a8f164}</Project>
       <Name>Distributed.Coordinator</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Distributed.Monitor\Distributed.Monitor.csproj">
+      <Project>{31ce2bb9-8dae-4049-b28c-a494e71890c9}</Project>
+      <Name>Distributed.Monitor</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

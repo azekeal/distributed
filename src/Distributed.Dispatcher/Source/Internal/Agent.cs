@@ -4,12 +4,15 @@ using Microsoft.AspNet.SignalR.Client;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 namespace Distributed.Internal.Dispatcher
 {
     public class Agent : Endpoint
     {
         public string Identifier { get; private set; }
+
+        public event Action<Agent, TaskItem[], TaskItem[]> TasksChanged;
 
         private Distributed.Dispatcher dispatcher;
         private AgentConnection connection;
@@ -57,6 +60,8 @@ namespace Distributed.Internal.Dispatcher
 
                 connection?.Dispose();
                 connection = null;
+
+                TasksChanged = null;
             }
         }
 
@@ -81,6 +86,8 @@ namespace Distributed.Internal.Dispatcher
 
                 RequestTasks();
             }
+
+            NotifyTasksChanged();
         }
 
         private void OnStateChanged(StateChange stateChange)
@@ -158,8 +165,6 @@ namespace Distributed.Internal.Dispatcher
                     return;
                 }
 
-                Console.WriteLine($"{activeTasks.Count} + {pendingTasks.Count} < {capacity}");
-
                 var queued = pendingTasks.Count + activeTasks.Count;
                 if (queued < capacity)
                 {
@@ -176,11 +181,15 @@ namespace Distributed.Internal.Dispatcher
             lock (lockObj)
             {
                 var tasks = activeJob.GetTasks(count, notifyOnTasksAvailable: RequestTasks);
-                foreach (var task in tasks)
+                if (tasks.Count > 0)
                 {
-                    Console.WriteLine("Add to pending: " + task);
-                    pendingTasks.Add(task.Identifier, task);
+                    foreach (var task in tasks)
+                    {
+                        Console.WriteLine("Add to pending: " + task);
+                        pendingTasks.Add(task.Identifier, task);
+                    }
                 }
+
                 return tasks;
             }
         }
@@ -194,6 +203,19 @@ namespace Distributed.Internal.Dispatcher
             {
                 var results = await connection.StartTasks(tasks);
                 ProcessStartTaskResults(tasks, results);
+
+                NotifyTasksChanged();
+            }
+        }
+
+        private void NotifyTasksChanged()
+        {
+            lock (lockObj)
+            {
+                if (TasksChanged != null)
+                {
+                    TasksChanged.Invoke(this, pendingTasks.Values.ToArray(), activeTasks.Values.ToArray());
+                }
             }
         }
 

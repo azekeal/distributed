@@ -83,13 +83,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Scripts\jquery-1.6.4-vsdoc.js" />
-    <Content Include="Scripts\jquery-1.6.4.js" />
-    <Content Include="Scripts\jquery-1.6.4.min.js" />
-    <Content Include="Scripts\jquery.signalR-2.2.3.js" />
-    <Content Include="Scripts\jquery.signalR-2.2.3.min.js" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Distributed.Agent\Distributed.Agent.csproj">
       <Project>{6f6e09da-5d38-4a8e-8bbd-2a239ce4ee7c}</Project>
       <Name>Distributed.Agent</Name>

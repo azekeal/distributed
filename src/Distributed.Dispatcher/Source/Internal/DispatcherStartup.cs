@@ -5,7 +5,7 @@ using System;
 
 namespace Distributed.Internal
 {
-    public class CoordinatorStartup
+    public class DispatcherStartup
     {
         public void Configuration(IAppBuilder app)
         {

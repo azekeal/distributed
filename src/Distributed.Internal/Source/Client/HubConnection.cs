@@ -18,7 +18,7 @@ namespace Distributed.Internal.Client
         public string HubName { get; internal set; }
         public IHubProxy Proxy => proxy;
 
-        public HubConnection(string url, string id, string endpointData, string hubName)
+        public HubConnection(string url, string id, string endpoint, string hubName)
         {
             HubName = hubName;
 
@@ -26,6 +26,7 @@ namespace Distributed.Internal.Client
             hubConnection.StateChanged += OnStateChanged;
             hubConnection.Credentials = CredentialCache.DefaultCredentials;
             hubConnection.Headers.Add("id", id);
+            hubConnection.Headers.Add("endpoint", endpoint);
 
             CreateProxy();
         }

@@ -1,6 +1,7 @@
 ﻿using Distributed.Core;
 using Distributed.Internal;
 using Distributed.Internal.Server;
+using Distributed.Internal.Util;
 using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Hosting;
 using System;
@@ -10,6 +11,7 @@ namespace Distributed
     public class CoordinatorConfig
     {
         public int CoordinatorPort = Constants.Ports.CoordinatorHost;
+        public bool Monitor = true;
     }
 
     public sealed class Coordinator : IDisposable
@@ -22,6 +24,7 @@ namespace Distributed
         private IHubContext dispatcherHubContext;
         private IHubContext agentHubContext;
         private IDisposable host;
+        private IDisposable monitor;
 
         public Coordinator() : this(new CoordinatorConfig()) { }
         public Coordinator(CoordinatorConfig config)
@@ -30,6 +33,11 @@ namespace Distributed
             Config = config;
 
             StartListeningForDispatchersAndAgents();
+
+            if (config.Monitor)
+            {
+                monitor = new CoordinatorMonitor(this);
+            }
         }
 
         private void StartListeningForDispatchersAndAgents()
@@ -44,18 +52,20 @@ namespace Distributed
             AgentConnections.EndpointAdded += OnAgentAdded;
             AgentConnections.EndpointRemoved += OnAgentRemoved;
 
-            host = WebApp.Start(new StartOptions(HostUrl)
+            var hostUrl = Permissions.GetHostUrl(Config.CoordinatorPort);
+            host = WebApp.Start(new StartOptions(hostUrl)
             {
                 AppStartup = typeof(CoordinatorStartup).FullName
             });
-            Console.WriteLine("Server running on {0}", HostUrl);
+            Console.WriteLine("Server running on {0}", hostUrl);
         }
-
-        public string HostUrl => $"http://localhost:{Config.CoordinatorPort}";
 
         public void Dispose()
         {
             host.Dispose();
+
+            monitor?.Dispose();
+            monitor = null;
         }
 
         private void OnDispatcherAdded(string name, string connectionId, EndpointConnectionInfo info)

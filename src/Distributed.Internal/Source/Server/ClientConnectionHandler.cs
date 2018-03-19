@@ -23,11 +23,11 @@ namespace Distributed.Internal.Server
 
         public dynamic this[string name] => Connections.Group(name);
 
-        public void OnConnect(string name, string connectionId)
+        public void OnConnect(string name, string connectionId, string endpoint)
         {
             if (Connections.Add(name, connectionId))
             {
-                var info = new EndpointConnectionInfo(name);
+                var info = new EndpointConnectionInfo(name, endpoint);
                 lock (Endpoints)
                 {
                     Endpoints[name] = info;
@@ -50,11 +50,11 @@ namespace Distributed.Internal.Server
             }
         }
 
-        public void OnReconnect(string name, string connectionId)
+        public void OnReconnect(string name, string connectionId, string endpoint)
         {
             if (!Connections.ConnectionIds(name).Contains(connectionId))
             {
-                OnConnect(name, connectionId);
+                OnConnect(name, connectionId, endpoint);
             }
         }
     }

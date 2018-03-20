@@ -7,7 +7,7 @@ namespace Distributed.Internal.Client
 {
     public class EndpointHubConnection : HubConnection
     {
-        public EndpointHubConnection(string url, string id, string endpointData, string hubName) : base(url, id, endpointData, hubName)
+        public EndpointHubConnection(string url, string id, string signalrUrl, string webUrl, string hubName) : base(url, id, signalrUrl, webUrl, hubName)
         {
         }
 

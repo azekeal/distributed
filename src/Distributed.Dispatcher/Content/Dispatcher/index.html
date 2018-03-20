@@ -61,7 +61,12 @@
     <div id="visualization">
         <div class="menu">
             <input type="button" id="fit" value="Fit" />
+            <input type="button" id="toggleRollingMode" value="Follow" />
         </div>
+    </div>
+    <div id="taskDetail">
+        <div class="name"></div>
+        <div class="data"></div>
     </div>
 
     <!--Script references. -->
@@ -84,10 +89,10 @@
             z-index: 9999;
         }
 
-        input#fit {
-            background: transparent;
-            border: 2px solid black;
-        }
+            .menu input {
+                background: transparent;
+                border: 2px solid black;
+            }
 
         .vis-item.vis-range {
             border-radius: 5px !important;
@@ -111,28 +116,33 @@
             var nextGroupId = 1;
             var agents = {};
             var agentTasks = {};
+            var agentTaskTimelineIds = {};
+            var selectedTaskId = 0;
 
             var container = document.getElementById('visualization');
             var items = new vis.DataSet([]);
-            var groups = new vis.DataSet([]);
+            var groups = new vis.DataSet([
+                { id: "dead", content: 'Dead Agents', nestedGroups: [] }
+            ]);
 
             var options = {
                 start: Date.now(),
                 end: Date.now() + 1000 * 100,
                 align: 'left',
                 min: Date.now(),
-                minHeight: '5000px',
-                zoomMax: 1000 * 60 * 60 * 24 * 2
+                minHeight: '200px',
+                zoomMax: 1000 * 60 * 60 * 24 * 2,
+                //rollingMode: { follow: false, offset: 0.5 }
             };
             var timeline = new vis.Timeline(container, items, groups, options);
 
-            monitor.client.setJob = function (name, priority, config, taskCount) {
-                $('#job').empty();
-                $('#job').append("<div>Name:" + name + "</div>");
-                $('#job').append("<div>Priority:" + priority + "</div>");
-                $('#job').append("<div>Config:" + config + "</div>");
-                $('#job').append("<div>TaskCount:" + taskCount + "</div>");
-            };
+            //monitor.client.setJob = function (name, priority, config, taskCount) {
+            //    $('#job').empty();
+            //    $('#job').append("<div>Name:" + name + "</div>");
+            //    $('#job').append("<div>Priority:" + priority + "</div>");
+            //    $('#job').append("<div>Config:" + config + "</div>");
+            //    $('#job').append("<div>TaskCount:" + taskCount + "</div>");
+            //};
 
             monitor.client.addAgent = function (name, endpoint) {
                 var agent = agents[name];
@@ -148,35 +158,60 @@
                 }
             };
 
+            monitor.client.removeAgent = function (name) {
+                var agent = agents[name];
+                if (agent) {
+                    var nestedGroups = groups.get("dead").nestedGroups;
+                    nestedGroups.push(agent.groupId);
+                    groups.update({ id: "dead", nestedGroups: nestedGroups });
+                    timeline.setGroups(groups);
+
+                    delete agents[name];
+                }
+            };
+
             monitor.client.setAgentCapacity = function (name, capacity) {
                 var agent = agents[name];
+                if (!agent) {
+                    return;
+                }
+
                 agent.capacity = capacity;
 
                 groups.update({
                     id: agent.groupId,
                     content: '<a href="http://' + agent.endpoint + '">Agent</a> (' + capacity + ' threads)',
+                    title: name
                 });
             };
 
             monitor.client.updateTask = function (name, state, tasks) {
                 var agent = agents[name];
+                if (!agent) {
+                    return;
+                }
 
                 for (var i in tasks) {
-                    var taskId = tasks[i];
-                    var task = agentTasks[taskId];
+                    var taskItem = tasks[i];
+                    var taskName = taskItem.Identifier;
+                    var task = agentTasks[taskName];
 
                     if (!task) {
                         task = {
+                            agentId: name,
                             id: nextTaskId++,
                             startTime: Date.now(),
                             endTime: Date.now(),
+                            taskName: taskName,
+                            taskData: taskItem.Data
                         };
-                        agentTasks[taskId] = task;
+                        agentTasks[taskName] = task;
+                        agentTaskTimelineIds[task.id] = task;
 
                         items.add({
                             id: task.id,
                             content: "",
-                            title: taskId,
+                            title: taskName,
                             start: new Date(task.startTime),
                             group: agent.groupId,
                         });
@@ -188,12 +223,45 @@
                         activeSet.delete(task.id);
                     }
 
+                    // remove tasks from the known task names
+                    if (state == 'cancelled') {
+                        delete agentTasks[taskName];
+                        delete agentTaskTimelineIds[task.id];
+                    }
+
                     items.update({ id: task.id, className: 'task-' + state });
                 }
             };
 
 
             $('#fit').click(() => timeline.fit());
+            $('#toggleRollingMode').click(() => {
+                timeline.setOptions({ rollingMode: { offset: 0.5 } });
+                timeline.toggleRollingMode();
+            });
+
+            timeline.on('select', function (properties) {
+                var taskId = properties.items[0];
+                var detail = $("#taskDetail");
+                var name = detail.find('.name');
+                var data = detail.find('.data');
+
+                if (selectedTaskId && selectedTaskId != taskId) {
+                    items.update({ id: selectedTaskId, style: "box-shadow:none" })
+                }
+
+                var task = agentTaskTimelineIds[taskId];
+                if (task) {
+                    name.text(task.taskName);
+                    data.text(task.taskData);
+                    items.update({ id: taskId, style: "box-shadow: rgb(35, 173, 278) 0 0 15px 3px" })
+                } else {
+                    name.text("");
+                    data.text("");
+                }
+
+                selectedTaskId = taskId;
+            });
 
             // Get the user name and store it to prepend to messages.
             //$('#displayname').val(prompt('Enter your name:', ''));

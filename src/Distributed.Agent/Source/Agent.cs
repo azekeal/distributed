@@ -16,7 +16,8 @@ namespace Distributed
         public static Agent Instance { get; private set; }
         public ClientConnectionHandler DispatcherConnections { get; private set; }
         public string Identifier { get; private set; }
-        public string Endpoint { get; private set; }
+        public string SignalrUrl { get; private set; }
+        public string WebUrl { get; private set; }
         public AgentConfig Config { get; private set; }
 
         private dynamic ActiveDispatcher => activeDispatcher != null ? DispatcherConnections[activeDispatcher] : null;
@@ -33,8 +34,11 @@ namespace Distributed
         {
             Instance = this;
             Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
-            Endpoint = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
+            SignalrUrl = $"127.0.0.1:{config.AgentPort}"; // TODO: get correct endpoint location
+            WebUrl = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
             Config = config;
+
+            Console.WriteLine($"Identifier: {Identifier}");
 
             this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
             this.taskExecutor.Agent = this;
@@ -57,7 +61,7 @@ namespace Distributed
             DispatcherConnections.EndpointAdded += AddDispatcher;
             DispatcherConnections.EndpointRemoved += RemoveDispatcher;
 
-            var hostUrl = GetHostUrl();
+            var hostUrl = Permissions.GetHostUrl(Config.AgentPort);
             host = WebApp.Start(new StartOptions(hostUrl)
             {
                 AppStartup = typeof(AgentStartup).FullName
@@ -65,22 +69,9 @@ namespace Distributed
             Console.WriteLine("Server running on {0}", hostUrl);
         }
 
-        private string GetHostUrl()
-        {
-            if (Permissions.IsAdministrator())
-            {
-                return $"http://*:{Config.AgentPort}";
-            }
-            else
-            {
-                Console.WriteLine("WARNING: Coordinator needs to be run with admin permissions to be able to serve other computers.");
-                return $"http://localhost:{Config.AgentPort}";
-            }
-        }
-
         private void RegisterWithCoordinator()
         {
-            coordinator = new HubConnection($"http://{Config.CoordinatorAddress}/signalr", Identifier, Endpoint, "AgentHub");
+            coordinator = new HubConnection($"http://{Config.CoordinatorAddress}", Identifier, SignalrUrl, WebUrl, "AgentHub");
             coordinator.Start();
         }
 

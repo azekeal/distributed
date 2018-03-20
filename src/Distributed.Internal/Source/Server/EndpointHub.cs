@@ -10,12 +10,13 @@ namespace Distributed.Internal.Server
         public ClientConnectionHandler ClientConnectionHandler;
 
         public string Name => Context.Headers["id"];
-        public string Endpoint => Context.Headers["endpoint"];
+        public string SignalrUrl => Context.Headers["signalrUrl"];
+        public string WebUrl => Context.Headers["webUrl"];
 
         public override Task OnConnected()
         {
             Console.WriteLine($"OnConnected {Name}");
-            ClientConnectionHandler?.OnConnect(Name, Context.ConnectionId, Endpoint);
+            ClientConnectionHandler?.OnConnect(Name, Context.ConnectionId, SignalrUrl, WebUrl);
             return base.OnConnected();
         }
 
@@ -29,7 +30,7 @@ namespace Distributed.Internal.Server
         public override Task OnReconnected()
         {
             Console.WriteLine($"OnReconnected {Name}");
-            ClientConnectionHandler?.OnReconnect(Name, Context.ConnectionId, Endpoint);
+            ClientConnectionHandler?.OnReconnect(Name, Context.ConnectionId, SignalrUrl, WebUrl);
             return base.OnReconnected();
         }
     }

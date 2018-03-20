@@ -43,7 +43,7 @@ namespace Distributed.Monitor
 
         private void OnAgentAdded(EndpointConnectionInfo info) => AgentAdded(info, context.Clients.All);
         private void OnAgentCapacityChanged(Agent agent, int capacity) => AgentCapacityChanged(agent, capacity, context.Clients.All);
-        private void OnAgentTasksChanged(Agent agent, TaskState state, IEnumerable<TaskItem> tasks) => AgentTasksChanged(agent, state, tasks.Select(t => t.Identifier), context.Clients.All);
+        private void OnAgentTasksChanged(Agent agent, TaskState state, IEnumerable<TaskItem> tasks) => AgentTasksChanged(agent, state, tasks, context.Clients.All);
 
 
         private void OnActiveJobChanged(Job obj) => UpdateJob(context.Clients.All);
@@ -73,7 +73,7 @@ namespace Distributed.Monitor
             }
         }
 
-        private void AgentTasksChanged(Agent agent, TaskState state, IEnumerable<string> tasks, dynamic caller)
+        private void AgentTasksChanged(Agent agent, TaskState state, IEnumerable<TaskItem> tasks, dynamic caller)
         {
             caller.updateTask(agent.Identifier, state.ToString().ToLower(), tasks);
         }
@@ -90,7 +90,7 @@ namespace Distributed.Monitor
             agent.CapacityChanged += OnAgentCapacityChanged;
             agent.Disposed += OnAgentDisposed;
 
-            caller.addAgent(info.name, info.endpoint);
+            caller.addAgent(info.name, info.signalrUrl);
 
             if (agent.Capacity > 0)
             {
@@ -114,6 +114,8 @@ namespace Distributed.Monitor
             {
                 AgentTasksChanged(agent, TaskState.Cancelled, active, context.Clients.All);
             }
+
+            context.Clients.All.removeAgent(agent.Identifier);
         }
 
         public void UpdateJob(dynamic group)

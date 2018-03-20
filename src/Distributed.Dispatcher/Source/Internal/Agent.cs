@@ -20,7 +20,7 @@ namespace Distributed.Internal.Dispatcher
     public class Agent : Endpoint
     {
 
-        public string Identifier { get; private set; }
+        public string Identifier => Info.name;
         public int Capacity { get; private set; }
 
         public event Action<Agent, TaskState, IEnumerable<TaskItem>> TaskStateChanged;
@@ -37,24 +37,24 @@ namespace Distributed.Internal.Dispatcher
         private object lockObj = new object();
 
 
-        public IEnumerable<string> PendingTasks
+        public IEnumerable<TaskItem> PendingTasks
         {
             get
             {
                 lock (lockObj)
                 {
-                    return pendingTasks.Keys.ToArray();
+                    return pendingTasks.Values.ToArray();
                 }
             }
         }
 
-        public IEnumerable<string> ActiveTasks
+        public IEnumerable<TaskItem> ActiveTasks
         {
             get
             {
                 lock (lockObj)
                 {
-                    return activeTasks.Keys.ToArray();
+                    return activeTasks.Values.ToArray();
                 }
             }
         }
@@ -79,6 +79,8 @@ namespace Distributed.Internal.Dispatcher
         {
             lock (lockObj)
             {
+                Console.WriteLine($"Disposing {Identifier}");
+
                 Disposed?.Invoke(this);
 
                 disposed = true;
@@ -102,13 +104,27 @@ namespace Distributed.Internal.Dispatcher
                 TaskStateChanged = null;
             }
         }
-
+        
         private void OnActiveJobChanged(Job obj) => RequestTasks();
 
         private void OnTaskCompleted(TaskItem task, TaskResult result)
         {
             lock (lockObj)
             {
+                if (disposed)
+                {
+                    Console.WriteLine($"WARNING: Agent {Identifier} returning tasks ({task}) when disposed");
+                    return;
+                }
+
+                if (!initialized)
+                {
+                    Console.WriteLine($"WARNING: Agent {Identifier} returning tasks ({task}) when not initialized");
+                    return;
+                }
+
+                Console.WriteLine($"Agent {Identifier} Task Completed {task}");
+
                 if (result.success)
                 {
                     Console.WriteLine($"Task completed successfully {task.Identifier}");
@@ -120,13 +136,18 @@ namespace Distributed.Internal.Dispatcher
                 }
 
                 activeTasks.Remove(task.Identifier);
-                activeJob.CompleteTask(task, result);
+            }
 
-                RequestTasks();
+            // exit agent lock before calling job to prevent potential deadlocks
+            activeJob.CompleteTask(task, result);
 
+            RequestTasks();
+
+            lock (lockObj)
+            {
                 if (TaskStateChanged != null)
                 {
-                    TaskStateChanged.Invoke(this, TaskState.Completed, new TaskItem[] { task });
+                    TaskStateChanged?.Invoke(this, TaskState.Completed, new TaskItem[] { task });
                 }
             }
         }
@@ -143,7 +164,6 @@ namespace Distributed.Internal.Dispatcher
         {
             if (activate)
             {
-                Identifier = agentId;
                 Console.WriteLine($"Connected to agent {Identifier}");
 
                 // Agent accepts, start giving it work
@@ -220,9 +240,11 @@ namespace Distributed.Internal.Dispatcher
         /// </summary>
         private List<TaskItem> GetNewTasks(int count)
         {
+            // get tasks outside lock to avoid potential deadlock (job has its own lock)
+            var tasks = activeJob.GetTasks(count, notifyOnTasksAvailable: RequestTasks);
+
             lock (lockObj)
             {
-                var tasks = activeJob.GetTasks(count, notifyOnTasksAvailable: RequestTasks);
                 if (tasks.Count > 0)
                 {
                     foreach (var task in tasks)
@@ -245,9 +267,15 @@ namespace Distributed.Internal.Dispatcher
             {
                 TaskStateChanged?.Invoke(this, TaskState.Pending, tasks);
 
-                var results = await connection.StartTasks(tasks);
-
-                ProcessStartTaskResults(tasks, results);
+                try
+                {
+                    var results = await connection.StartTasks(tasks);
+                    ProcessStartTaskResults(tasks, results);
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine($"Failed to start tasks ({e.Message})");
+                }
             }
         }
 
@@ -256,36 +284,43 @@ namespace Distributed.Internal.Dispatcher
             Debug.Assert(results.Length == tasks.Count);
             Console.WriteLine("ProcessStartTaskResults");
 
-            lock (lockObj)
+            var successful = new List<TaskItem>();
+            var failed = new List<TaskItem>();
+
+            for (int i = 0; i < results.Length; ++i)
             {
-                var successful = new List<TaskItem>();
-                var failed = new List<TaskItem>();
+                var task = tasks[i];
+                var result = results[i];
 
-                for (int i = 0; i < results.Length; ++i)
+                if (result.success)
                 {
-                    var task = tasks[i];
-                    var result = results[i];
+                    Console.WriteLine($"Task started {task.Identifier}");
+                    successful.Add(task);
 
-                    if (result.success)
+                    lock (lockObj)
                     {
-                        Console.WriteLine($"Task started {task.Identifier}");
                         activeTasks.Add(task.Identifier, task);
-
-                        successful.Add(task);
                     }
-                    else
-                    {
-                        Console.WriteLine($"Failed to start task {task.Identifier}");
-                        Console.WriteLine(result.errorMessage);
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to start task {task.Identifier}");
+                    Console.WriteLine(result.errorMessage);
+                    failed.Add(task);
 
-                        activeJob.CompleteTask(task, result);
+                    // we wan't all calls to job to be outside the lock to prevent potential deadlocks
+                    activeJob.CompleteTask(task, result);
 
-                        failed.Add(task);
-                    }
-
-                    pendingTasks.Remove(task.Identifier);
                 }
 
+                lock (lockObj)
+                {
+                    pendingTasks.Remove(task.Identifier);
+                }
+            }
+
+            lock (lockObj)
+            {
                 if (TaskStateChanged != null)
                 {
                     if (successful.Count > 0)

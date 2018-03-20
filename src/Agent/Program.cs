@@ -67,6 +67,7 @@ namespace Mock
             if (args.Length > 1)
             {
                 config.AgentPort = int.Parse(args[1]);
+                config.WebPort = config.AgentPort + 1;
                 Console.WriteLine($"AgentHost: http://localhost:{config.AgentPort}/");
             }
 

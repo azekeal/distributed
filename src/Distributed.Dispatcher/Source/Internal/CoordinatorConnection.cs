@@ -4,7 +4,7 @@ namespace Distributed.Internal.Dispatcher
 {
     public class CoordinatorConnection : EndpointHubConnection
     {
-        public CoordinatorConnection(string url, string id, string endpointData, string hubName) : base(url, id, endpointData, hubName)
+        public CoordinatorConnection(string url, string id, string signalrUrl, string webUrl, string hubName) : base(url, id, signalrUrl, webUrl, hubName)
         {
         }
 

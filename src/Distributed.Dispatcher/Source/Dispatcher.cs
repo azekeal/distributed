@@ -13,7 +13,8 @@ namespace Distributed
         public static Dispatcher Instance { get;private set; }
 
         public string Identifier { get; private set; }
-        public string EndpointData { get; private set; }
+        public string SignalrUrl { get; private set; }
+        public string WebUrl { get; private set; }
         public CoordinatorConnection Coordinator { get; private set; }
         public Job ActiveJob { get; private set; }
         public DispatcherConfig Config { get; private set; }
@@ -33,13 +34,16 @@ namespace Distributed
             Instance = this;
 
             this.Identifier = $"{Constants.Names.Dispatcher}_{Guid.NewGuid()}";
-            this.EndpointData = $"127.0.0.1:{config.WebPort}";
+            this.SignalrUrl = $"127.0.0.1:{config.DispatcherPort}"; // TODO: get the local ip address
+            this.WebUrl = $"127.0.0.1:{config.WebPort}";
             this.Config = config;
+
+            Console.WriteLine($"Identifier: {Identifier}");
 
             this.Agents = new AgentPool(this);
             this.jobQueue = new SortedList<int, Job>();
 
-            this.Coordinator = new CoordinatorConnection($"http://{config.CoordinatorAddress}/signalr", Identifier, EndpointData, "DispatcherHub");
+            this.Coordinator = new CoordinatorConnection($"http://{config.CoordinatorAddress}", Identifier, SignalrUrl, WebUrl, "DispatcherHub");
             this.Coordinator.EndpointAdded += Agents.Add;
             this.Coordinator.EndpointRemoved += Agents.Remove;
             this.Coordinator.EndpointListUpdated += Agents.Update;

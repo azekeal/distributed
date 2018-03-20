@@ -18,7 +18,7 @@ namespace Distributed.Internal.Client
         public string HubName { get; internal set; }
         public IHubProxy Proxy => proxy;
 
-        public HubConnection(string url, string id, string endpoint, string hubName)
+        public HubConnection(string url, string id, string signalrUrl, string webUrl, string hubName)
         {
             HubName = hubName;
 
@@ -26,7 +26,8 @@ namespace Distributed.Internal.Client
             hubConnection.StateChanged += OnStateChanged;
             hubConnection.Credentials = CredentialCache.DefaultCredentials;
             hubConnection.Headers.Add("id", id);
-            hubConnection.Headers.Add("endpoint", endpoint);
+            hubConnection.Headers.Add("signalrUrl", signalrUrl);
+            hubConnection.Headers.Add("webUrl", webUrl);
 
             CreateProxy();
         }
@@ -55,9 +56,13 @@ namespace Distributed.Internal.Client
 
             if (stateChange.NewState == ConnectionState.Disconnected)
             {
-                if (reconnect)
+                if (stateChange.OldState == ConnectionState.Disconnected)
                 {
-                    Task.Delay(1000).ContinueWith((t) => hubConnection.Start());
+                    hubConnection?.Start();
+                }
+                else if (reconnect)
+                {
+                    Task.Delay(1000).ContinueWith((t) => hubConnection?.Start());
                 }
             }
 
@@ -70,7 +75,8 @@ namespace Distributed.Internal.Client
 
             Stop();
 
-            hubConnection?.Dispose();
+            hubConnection.StateChanged -= OnStateChanged;
+            hubConnection.Dispose();
             hubConnection = null;
         }
     }

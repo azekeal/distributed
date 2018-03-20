@@ -3,12 +3,14 @@
     public struct EndpointConnectionInfo
     {
         public string name;
-        public string endpoint;
+        public string signalrUrl;
+        public string webUrl;
 
-        public EndpointConnectionInfo(string name, string endpoint)
+        public EndpointConnectionInfo(string name, string signalrUrl, string webUrl)
         {
             this.name = name;
-            this.endpoint = endpoint;
+            this.signalrUrl = signalrUrl;
+            this.webUrl = webUrl;
         }
 
         public override string ToString() => name;

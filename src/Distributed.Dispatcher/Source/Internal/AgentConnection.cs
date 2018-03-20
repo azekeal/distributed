@@ -17,7 +17,7 @@ namespace Distributed.Internal.Dispatcher
 
         public AgentConnection(Distributed.Dispatcher dispatcher, EndpointConnectionInfo info)
         {
-            connection = new HubConnection($"http://localhost:{Constants.Ports.AgentHost}/signalr", dispatcher.Identifier, dispatcher.EndpointData, "DispatcherHub");
+            connection = new HubConnection($"http://{info.signalrUrl}/", dispatcher.Identifier, dispatcher.SignalrUrl, dispatcher.WebUrl, "DispatcherHub");
             connection.StateChanged += s => StateChanged?.Invoke(s);
             connection.Proxy.On<string, bool>("SetAgentState", (id, active) => SetAgentState?.Invoke(id, active));
             connection.Proxy.On<TaskItem, TaskResult>("CompleteTask", (taskItem, taskResult) => TaskCompleted?.Invoke(taskItem, taskResult));

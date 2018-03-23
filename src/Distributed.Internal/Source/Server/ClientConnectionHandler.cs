@@ -52,7 +52,7 @@ namespace Distributed.Internal.Server
 
         public void OnReconnect(string name, string connectionId, string signalrUrl, string webUrl)
         {
-            if (!Connections.ConnectionIds(name).Contains(connectionId))
+            if (!Connections.Contains(name, connectionId))
             {
                 OnConnect(name, connectionId, signalrUrl, webUrl);
             }

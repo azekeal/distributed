@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Distributed</id>
+    <version>2018.0319.0</version>
+    <authors>Tony Ambrus</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Set of assemblies that provides dispatcher-coordinator-agent communication and web-based monitor</description>
+    <tags>Distributed</tags>
+  </metadata>
+  <files>
+    <file src="..\..\bin\Debug\**" target="lib\4.7.1\" />
+  </files>
+</package>

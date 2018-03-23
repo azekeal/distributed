@@ -9,7 +9,7 @@ namespace Distributed.Internal.Client
 
     public class EndpointPool : IDisposable
     {
-        protected object lockObj = new object();
+        private object lockObj = new object();
         protected ConcurrentDictionary<string, Endpoint> endpoints = new ConcurrentDictionary<string, Endpoint>();
 
         public EndpointPool()
@@ -35,7 +35,7 @@ namespace Distributed.Internal.Client
             lock (lockObj)
             {
                 if (endpoints.TryRemove(name, out var endpoint))
-                { 
+                {
                     endpoint.Dispose();
                 }
             }

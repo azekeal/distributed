@@ -6,6 +6,7 @@ using Distributed.Internal.Util;
 using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Hosting;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -28,20 +29,20 @@ namespace Distributed
         private TaskExecutor taskExecutor;
         private List<string> dispatcherQueue = new List<string>();
         private string activeDispatcher;
-        private object lockObj = new object();
 
         public Agent(AgentConfig config, TaskExecutor taskExecutor)
         {
             Instance = this;
-            Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
-            SignalrUrl = $"127.0.0.1:{config.AgentPort}"; // TODO: get correct endpoint location
-            WebUrl = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
-            Config = config;
 
-            Console.WriteLine($"Identifier: {Identifier}");
+            this.Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
+            this.SignalrUrl = $"127.0.0.1:{config.AgentPort}"; // TODO: get correct endpoint location
+            this.WebUrl = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
+            this.Config = config;
 
             this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
-            this.taskExecutor.Agent = this;
+            this.taskExecutor.CompletedTask += CompleteTask;
+
+            Console.WriteLine($"Identifier: {Identifier}");
 
             StartListeningForDispatchers();
             RegisterWithCoordinator();
@@ -49,6 +50,8 @@ namespace Distributed
 
         public void Dispose()
         {
+            taskExecutor.CompletedTask -= CompleteTask;
+
             coordinator.Dispose();
             host.Dispose();
         }
@@ -75,9 +78,9 @@ namespace Distributed
             coordinator.Start();
         }
 
-        public void AddDispatcher(string name, string connectionInfo, EndpointConnectionInfo info)
+        private void AddDispatcher(string name, string connectionInfo, EndpointConnectionInfo info)
         {
-            lock (lockObj)
+            lock (dispatcherQueue)
             {
                 dispatcherQueue.Add(name);
 
@@ -88,9 +91,9 @@ namespace Distributed
             }
         }
 
-        public void RemoveDispatcher(string name)
+        private void RemoveDispatcher(string name)
         {
-            lock (lockObj)
+            lock (dispatcherQueue)
             {
                 dispatcherQueue.Remove(name);
 
@@ -108,27 +111,23 @@ namespace Distributed
         /// </summary>
         private void ActivateNextDispatcher()
         {
-            lock (lockObj)
+            if (activeDispatcher != null)
             {
-                if (activeDispatcher != null)
-                {
-                    ActiveDispatcher.SetAgentState(Identifier, false);
-                }
+                ActiveDispatcher.SetAgentState(Identifier, false);
+            }
 
+            lock (dispatcherQueue)
+            {
                 if (dispatcherQueue.Count > 0)
                 {
                     activeDispatcher = dispatcherQueue[0];
-                    dispatcherQueue.RemoveAt(0);
+                    dispatcherQueue.Remove(activeDispatcher);
                 }
-                else
-                {
-                    activeDispatcher = null;
-                }
+            }
 
-                if (activeDispatcher != null)
-                {
-                    ActiveDispatcher.SetAgentState(Identifier, true);
-                }
+            if (activeDispatcher != null)
+            {
+                ActiveDispatcher.SetAgentState(Identifier, true);
             }
         }
 

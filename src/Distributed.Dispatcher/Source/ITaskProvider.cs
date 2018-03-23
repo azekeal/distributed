@@ -11,6 +11,9 @@ namespace Distributed
         /// </summary>
         object Config { get; }
 
+        /// <summary>
+        /// Number of Tasks available
+        /// </summary>
         int TaskCount { get; }
 
         /// <summary>
@@ -21,12 +24,12 @@ namespace Distributed
         bool TryGetTask(out TaskItem task);
 
         /// <summary>
-        /// Returns true if tasks are available to get
+        /// Returns true if new tasks are available to retrieve
         /// </summary>
         bool CompleteTask(TaskItem task, TaskResult result);
 
         /// <summary>
-        /// Should fire if tasks are added dynamically to the task provider after the job has begun
+        /// Fires if tasks are added dynamically to the task provider after the job has begun
         /// </summary>
         event Action TasksAdded;
     }

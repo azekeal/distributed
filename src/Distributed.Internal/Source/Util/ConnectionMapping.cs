@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNet.SignalR;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Distributed.Internal.Util
 {
@@ -41,17 +40,11 @@ namespace Distributed.Internal.Util
             return HubContext.Clients.Group(key);
         }
 
-
-        public IEnumerable<string> ConnectionIds(string key)
+        public bool Contains(string key, string connectionId)
         {
             lock (connections)
             {
-                if (connections.TryGetValue(key, out var set))
-                {
-                    return set;
-                }
-
-                return Enumerable.Empty<string>();
+                return connections.TryGetValue(key, out var set) && set.Contains(connectionId);
             }
         }
 
@@ -64,15 +57,12 @@ namespace Distributed.Internal.Util
                     return false;
                 }
 
-                lock (set)
-                {
-                    set.Remove(connectionId);
+                set.Remove(connectionId);
 
-                    if (set.Count == 0)
-                    {
-                        connections.Remove(key);
-                        return true;
-                    }
+                if (set.Count == 0)
+                {
+                    connections.Remove(key);
+                    return true;
                 }
             }
 

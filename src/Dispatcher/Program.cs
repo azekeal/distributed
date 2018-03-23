@@ -45,8 +45,9 @@ namespace Mock
             {
                 Console.WriteLine("Work Added: " + line);
                 work.Enqueue(line);
-                TasksAdded?.Invoke();
             }
+
+            TasksAdded?.Invoke();
         }
     }
 

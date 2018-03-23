@@ -1,9 +1,12 @@
 ﻿using Distributed.Core;
+using Distributed.Internal.Util;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace Distributed.Internal.Dispatcher
 {
+
     public class Job : IDisposable
     {
         public delegate void TasksAvailableHandler();
@@ -17,8 +20,7 @@ namespace Distributed.Internal.Dispatcher
         public event Action Completed;
         public event Action TasksAvailable;
 
-        private object lockObj = new object();
-        private Queue<TaskItem> returnedTasks = new Queue<TaskItem>();
+        private ConcurrentQueue<TaskItem> returnedTasks = new ConcurrentQueue<TaskItem>();
         private ITaskProvider taskProvider;
 
         public Job(Distributed.Dispatcher dispatcher, ITaskProvider taskProvider, int priority)
@@ -39,32 +41,33 @@ namespace Distributed.Internal.Dispatcher
 
         public List<TaskItem> GetTasks(int capacity, Action notifyOnTasksAvailable)
         {
-            lock (lockObj)
+            var list = new List<TaskItem>();
+
+            while (capacity > 0 && returnedTasks.Count > 0)
             {
-                var list = new List<TaskItem>();
-
-                while (capacity > 0 && returnedTasks.Count > 0)
+                if (returnedTasks.TryDequeue(out var taskItem))
                 {
-                    list.Add(returnedTasks.Dequeue());
+                    list.Add(taskItem);
                     capacity--;
-                }
 
-                while (capacity > 0 && taskProvider.TryGetTask(out var task))
-                {
-                    list.Add(task);
-                    capacity--;
                 }
-
-                // don't have enough tasks to give the requestor
-                if (capacity > 0)
-                {
-                    Console.WriteLine("Waiting for tasks: " + notifyOnTasksAvailable);
-                    TasksAvailable -= notifyOnTasksAvailable;
-                    TasksAvailable += notifyOnTasksAvailable;
-                }
-
-                return list;
             }
+
+            while (capacity > 0 && taskProvider.TryGetTask(out var task))
+            {
+                list.Add(task);
+                capacity--;
+            }
+
+            // don't have enough tasks to give the requestor
+            if (capacity > 0)
+            {
+                Console.WriteLine("Waiting for tasks: " + notifyOnTasksAvailable);
+                TasksAvailable -= notifyOnTasksAvailable;
+                TasksAvailable += notifyOnTasksAvailable;
+            }
+
+            return list;
         }
 
         public void CompleteTask(TaskItem task, TaskResult result)
@@ -81,32 +84,26 @@ namespace Distributed.Internal.Dispatcher
 
         private void NotifyTasksAvailable()
         {
-            lock (lockObj)
-            {
-                Console.WriteLine("NotifyTasksAvailable: " + TasksAvailable);
+            Console.WriteLine("NotifyTasksAvailable: " + TasksAvailable);
 
-                // clear the invocation list
-                var listToNotify = TasksAvailable;
-                TasksAvailable = null;
-                listToNotify?.Invoke();
+            // clear the invocation list
+            var listToNotify = TasksAvailable;
+            TasksAvailable = null;
+            listToNotify?.Invoke();
 
-                Console.WriteLine("Clearing waiting tasks");
-            }
+            Console.WriteLine("Clearing waiting tasks");
         }
 
         public void CancelTasks(IEnumerable<TaskItem> tasks)
         {
-            lock (lockObj)
+            foreach (var task in tasks)
             {
-                foreach (var task in tasks)
-                {
-                    returnedTasks.Enqueue(task);
-                }
+                returnedTasks.Enqueue(task);
+            }
 
-                if (returnedTasks.Count > 0)
-                {
-                    NotifyTasksAvailable();
-                }
+            if (returnedTasks.Count > 0)
+            {
+                NotifyTasksAvailable();
             }
         }
 

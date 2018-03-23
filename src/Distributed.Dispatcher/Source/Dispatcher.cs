@@ -69,38 +69,40 @@ namespace Distributed
             lock (jobQueue)
             {
                 jobQueue.Add(priority, new Job(this, taskProvider, priority));
+            }
 
-                if (ActiveJob == null)
-                {
-                    StartNextJob();
-                }
+            if (ActiveJob == null)
+            {
+                StartNextJob();
             }
         }
 
         private void StartNextJob()
         {
+            if (ActiveJob != null)
+            {
+                ActiveJob.Completed -= OnJobCompleted;
+            }
+
             lock (jobQueue)
             {
-                if (ActiveJob != null)
-                {
-                    ActiveJob.Completed -= OnJobCompleted;
-                }
-
-                if (jobQueue.Count > 0)
-                {
-                    ActiveJob = jobQueue.Values[0];
-                    jobQueue.RemoveAt(0);
-
-                    ActiveJob.Start();
-                    ActiveJob.Completed += OnJobCompleted;
-                }
-                else
+                if (jobQueue.Count == 0)
                 {
                     ActiveJob = null;
                 }
 
-                ActiveJobChanged?.Invoke(ActiveJob);
+                ActiveJob = jobQueue.Values[0];
+                jobQueue.RemoveAt(0);
+
             }
+
+            if (ActiveJob != null)
+            {
+                ActiveJob.Start();
+                ActiveJob.Completed += OnJobCompleted;
+            }
+
+            ActiveJobChanged?.Invoke(ActiveJob);
         }
 
         internal void DiscardAgent(string agentId)

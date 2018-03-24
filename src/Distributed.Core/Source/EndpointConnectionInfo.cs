@@ -13,6 +13,6 @@
             this.webUrl = webUrl;
         }
 
-        public override string ToString() => name;
+        public override string ToString() => $"[name:{name}, signalrUrl:{signalrUrl}, webUrl:{webUrl}]";
     }
 }

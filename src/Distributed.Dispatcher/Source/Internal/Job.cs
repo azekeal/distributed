@@ -25,91 +25,115 @@ namespace Distributed.Internal.Dispatcher
 
         public Job(Distributed.Dispatcher dispatcher, ITaskProvider taskProvider, int priority)
         {
-            this.Dispatcher = dispatcher;
-            this.Name = $"job_{Guid.NewGuid()}";
-            this.Priority = priority;
-            this.TaskCount = taskProvider.TaskCount;
-            this.taskProvider = taskProvider;
-            this.taskProvider.TasksAdded += NotifyTasksAvailable;
+            using (Trace.Log())
+            {
+                this.Dispatcher = dispatcher;
+                this.Name = $"job_{Guid.NewGuid()}";
+                this.Priority = priority;
+                this.TaskCount = taskProvider.TaskCount;
+                this.taskProvider = taskProvider;
+                this.taskProvider.TasksAdded += NotifyTasksAvailable;
+            }
         }
 
         public void Start()
         {
-            // Dispatcher will assign agents to the dispatcher based on the job priority & size
-            Dispatcher.Coordinator.SetActiveJob(Name, Priority, TaskCount);
+            using (Trace.Log())
+            {
+                Dispatcher.UpdateJob(this);
+            }
         }
 
         public List<TaskItem> GetTasks(int capacity, Action notifyOnTasksAvailable)
         {
-            var list = new List<TaskItem>();
-
-            while (capacity > 0 && returnedTasks.Count > 0)
+            using (Trace.Log())
             {
-                if (returnedTasks.TryDequeue(out var taskItem))
+                var list = new List<TaskItem>();
+
+                while (capacity > 0 && returnedTasks.Count > 0)
                 {
-                    list.Add(taskItem);
-                    capacity--;
+                    if (returnedTasks.TryDequeue(out var taskItem))
+                    {
+                        list.Add(taskItem);
+                        capacity--;
 
+                    }
                 }
-            }
 
-            while (capacity > 0 && taskProvider.TryGetTask(out var task))
-            {
-                list.Add(task);
-                capacity--;
-            }
+                while (capacity > 0 && taskProvider.TryGetTask(out var task))
+                {
+                    list.Add(task);
+                    capacity--;
+                }
 
-            // don't have enough tasks to give the requestor
-            if (capacity > 0)
-            {
-                Console.WriteLine("Waiting for tasks: " + notifyOnTasksAvailable);
-                TasksAvailable -= notifyOnTasksAvailable;
-                TasksAvailable += notifyOnTasksAvailable;
-            }
+                // don't have enough tasks to give the requestor
+                if (capacity > 0)
+                {
+                    Console.WriteLine("Waiting for tasks: " + notifyOnTasksAvailable);
+                    TasksAvailable -= notifyOnTasksAvailable;
+                    TasksAvailable += notifyOnTasksAvailable;
+                }
 
-            return list;
+                return list;
+            }
         }
 
         public void CompleteTask(TaskItem task, TaskResult result)
         {
-            if (taskProvider.CompleteTask(task, result))
+            using (Trace.Log())
             {
-                NotifyTasksAvailable();
-            }
-            else if (taskProvider.TaskCount == 0)
-            {
-                Completed?.Invoke();
+                if (taskProvider.CompleteTask(task, result))
+                {
+                    NotifyTasksAvailable();
+                }
+                else if (taskProvider.TaskCount == 0)
+                {
+                    Completed?.Invoke();
+                }
+
+                Dispatcher.UpdateJob(this);
             }
         }
 
         private void NotifyTasksAvailable()
         {
-            Console.WriteLine("NotifyTasksAvailable: " + TasksAvailable);
+            using (Trace.Log())
+            {
+                Console.WriteLine("NotifyTasksAvailable: " + TasksAvailable);
 
-            // clear the invocation list
-            var listToNotify = TasksAvailable;
-            TasksAvailable = null;
-            listToNotify?.Invoke();
+                // clear the invocation list
+                var listToNotify = TasksAvailable;
+                TasksAvailable = null;
+                listToNotify?.Invoke();
 
-            Console.WriteLine("Clearing waiting tasks");
+                Console.WriteLine("Clearing waiting tasks");
+            }
         }
 
         public void CancelTasks(IEnumerable<TaskItem> tasks)
         {
-            foreach (var task in tasks)
+            using (Trace.Log())
             {
-                returnedTasks.Enqueue(task);
-            }
+                foreach (var task in tasks)
+                {
+                    returnedTasks.Enqueue(task);
+                }
 
-            if (returnedTasks.Count > 0)
-            {
-                NotifyTasksAvailable();
+                if (returnedTasks.Count > 0)
+                {
+                    NotifyTasksAvailable();
+                }
+
+                Dispatcher.UpdateJob(this);
             }
         }
 
         public void Dispose()
         {
-            taskProvider.TasksAdded -= NotifyTasksAvailable;
+            using (Trace.Log())
+            {
+                taskProvider.TasksAdded -= NotifyTasksAvailable;
+            }
         }
     }
 }

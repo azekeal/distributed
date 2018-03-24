@@ -17,7 +17,10 @@ namespace Distributed.Internal.Dispatcher
 
         public override Endpoint CreateEndpoint(EndpointConnectionInfo info)
         {
-            return new Agent(dispatcher, info);
+            using (Trace.Log())
+            {
+                return new Agent(dispatcher, info);
+            }
         }
 
         public Agent this[string name] => endpoints.TryGetValue(name, out var endpoint) ? (Agent)endpoint : null;

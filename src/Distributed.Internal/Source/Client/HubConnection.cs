@@ -8,11 +8,13 @@ namespace Distributed.Internal.Client
 {
     public class HubConnection : IDisposable
     {
+        // Id for this side of the connection (e.g. dispatcherId)
+        public string Identifier { get; private set; }
+
         protected Microsoft.AspNet.SignalR.Client.HubConnection hubConnection;
         protected IHubProxy proxy;
         protected ConnectionState connectionState = ConnectionState.Disconnected;
         protected bool reconnect = true;
-        protected string identifier;
 
         public event Action<StateChange> StateChanged;
         public string HubName { get; internal set; }
@@ -20,64 +22,85 @@ namespace Distributed.Internal.Client
 
         public HubConnection(string url, string id, string signalrUrl, string webUrl, string hubName)
         {
-            HubName = hubName;
+            using (Trace.Log())
+            {
 
-            hubConnection = new Microsoft.AspNet.SignalR.Client.HubConnection(url);
-            hubConnection.StateChanged += OnStateChanged;
-            hubConnection.Credentials = CredentialCache.DefaultCredentials;
-            hubConnection.Headers.Add("id", id);
-            hubConnection.Headers.Add("signalrUrl", signalrUrl);
-            hubConnection.Headers.Add("webUrl", webUrl);
+                HubName = hubName;
 
-            CreateProxy();
+                Identifier = id;
+
+                hubConnection = new Microsoft.AspNet.SignalR.Client.HubConnection(url);
+                hubConnection.StateChanged += OnStateChanged;
+                hubConnection.Credentials = CredentialCache.DefaultCredentials;
+                hubConnection.Headers.Add("id", id);
+                hubConnection.Headers.Add("signalrUrl", signalrUrl);
+                hubConnection.Headers.Add("webUrl", webUrl);
+
+                CreateProxy();
+            }
         }
 
 
         public virtual void Start()
         {
-            Debug.Assert(connectionState == ConnectionState.Disconnected);
-            OnStateChanged(new StateChange(ConnectionState.Disconnected, ConnectionState.Disconnected));
+            using (Trace.Log())
+            {
+                Debug.Assert(connectionState == ConnectionState.Disconnected);
+                OnStateChanged(new StateChange(ConnectionState.Disconnected, ConnectionState.Disconnected));
+            }
         }
 
         protected virtual void CreateProxy()
         {
-            proxy = hubConnection.CreateHubProxy(HubName);
+            using (Trace.Log())
+            {
+                proxy = hubConnection.CreateHubProxy(HubName);
+            }
         }
 
         public void Stop()
         {
-            hubConnection.Stop();
+            using (Trace.Log())
+            {
+                hubConnection?.Stop();
+            }
         }
 
         protected virtual void OnStateChanged(StateChange stateChange)
         {
-            connectionState = stateChange.NewState;
-            Console.WriteLine($"{stateChange.OldState} {stateChange.NewState}");
-
-            if (stateChange.NewState == ConnectionState.Disconnected)
+            using (Trace.Log())
             {
-                if (stateChange.OldState == ConnectionState.Disconnected)
-                {
-                    hubConnection?.Start();
-                }
-                else if (reconnect)
-                {
-                    Task.Delay(1000).ContinueWith((t) => hubConnection?.Start());
-                }
-            }
+                connectionState = stateChange.NewState;
+                Console.WriteLine($"{stateChange.OldState} {stateChange.NewState}");
 
-            StateChanged?.Invoke(stateChange);
+                if (stateChange.NewState == ConnectionState.Disconnected)
+                {
+                    if (stateChange.OldState == ConnectionState.Disconnected)
+                    {
+                        hubConnection?.Start();
+                    }
+                    else if (reconnect)
+                    {
+                        Task.Delay(1000).ContinueWith((t) => hubConnection?.Start());
+                    }
+                }
+
+                StateChanged?.Invoke(stateChange);
+            }
         }
 
         public virtual void Dispose()
         {
-            reconnect = false;
+            using (Trace.Log())
+            {
+                reconnect = false;
 
-            Stop();
+                Stop();
 
-            hubConnection.StateChanged -= OnStateChanged;
-            hubConnection.Dispose();
-            hubConnection = null;
+                hubConnection.StateChanged -= OnStateChanged;
+                hubConnection.Dispose();
+                hubConnection = null;
+            }
         }
     }
 }

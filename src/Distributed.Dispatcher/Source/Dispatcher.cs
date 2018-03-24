@@ -2,6 +2,7 @@
 using Distributed.Internal.Dispatcher;
 using Distributed.Internal.Util;
 using Distributed.Monitor;
+using Microsoft.AspNet.SignalR.Client;
 using Microsoft.Owin.Hosting;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ namespace Distributed
 {
     public sealed class Dispatcher : IDisposable
     {
-        public static Dispatcher Instance { get;private set; }
+        public static Dispatcher Instance { get; private set; }
 
         public string Identifier { get; private set; }
         public string SignalrUrl { get; private set; }
@@ -31,99 +32,142 @@ namespace Distributed
 
         public Dispatcher(DispatcherConfig config)
         {
-            Instance = this;
-
-            this.Identifier = $"{Constants.Names.Dispatcher}_{Guid.NewGuid()}";
-            this.SignalrUrl = $"127.0.0.1:{config.DispatcherPort}"; // TODO: get the local ip address
-            this.WebUrl = $"127.0.0.1:{config.WebPort}";
-            this.Config = config;
-
-            Console.WriteLine($"Identifier: {Identifier}");
-
-            this.Agents = new AgentPool(this);
-            this.jobQueue = new SortedList<int, Job>();
-
-            this.Coordinator = new CoordinatorConnection($"http://{config.CoordinatorAddress}", Identifier, SignalrUrl, WebUrl, "DispatcherHub");
-            this.Coordinator.EndpointAdded += Agents.Add;
-            this.Coordinator.EndpointRemoved += Agents.Remove;
-            this.Coordinator.EndpointListUpdated += Agents.Update;
-            this.Coordinator.Start();
-
-            if (config.Monitor)
+            using (Trace.Log())
             {
-                Monitor = new DispatcherMonitor(this, config.WebPort);
+                Instance = this;
+
+                this.Identifier = $"{Constants.Names.Dispatcher}_{Guid.NewGuid()}";
+                this.SignalrUrl = $"127.0.0.1:{config.DispatcherPort}"; // TODO: get the local ip address
+                this.WebUrl = $"127.0.0.1:{config.WebPort}";
+                this.Config = config;
+
+                Console.WriteLine($"Identifier: {Identifier}");
+
+                this.Agents = new AgentPool(this);
+                this.jobQueue = new SortedList<int, Job>();
+
+                this.Coordinator = new CoordinatorConnection($"http://{config.CoordinatorAddress}", Identifier, SignalrUrl, WebUrl, "DispatcherHub");
+                this.Coordinator.EndpointAdded += (info) => Agents.Add(info);
+                this.Coordinator.EndpointRemoved += (name) => Agents.Remove(name);
+                this.Coordinator.EndpointListUpdated += (list) => Agents.Update(list);
+                this.Coordinator.StateChanged += OnCoordinatorStateChanged;
+                this.Coordinator.Start();
+
+                if (config.Monitor)
+                {
+                    Monitor = new DispatcherMonitor(this, config.WebPort);
+                }
+
+                var hostUrl = Permissions.GetHostUrl(Config.DispatcherPort);
+                host = WebApp.Start(new StartOptions(hostUrl)
+                {
+                    AppStartup = typeof(DispatcherStartup).FullName
+                });
+                Console.WriteLine("Server running on {0}", hostUrl);
             }
-
-            var hostUrl = Permissions.GetHostUrl(Config.DispatcherPort);
-            host = WebApp.Start(new StartOptions(hostUrl)
-            {
-                AppStartup = typeof(DispatcherStartup).FullName
-            });
-            Console.WriteLine("Server running on {0}", hostUrl);
         }
 
-        private void OnJobCompleted() => StartNextJob();
-
-        public void AddJob(ITaskProvider taskProvider, int priority = 0)
+        private void OnCoordinatorStateChanged(StateChange stateChange)
         {
-            lock (jobQueue)
+            using (Trace.Log($"{stateChange}"))
             {
-                jobQueue.Add(priority, new Job(this, taskProvider, priority));
+                if (stateChange.NewState == ConnectionState.Connected)
+                {
+                    UpdateJob(ActiveJob);
+                }
             }
+        }
 
-            if (ActiveJob == null)
+        private void OnJobCompleted()
+        {
+            using (Trace.Log())
             {
                 StartNextJob();
             }
         }
 
-        private void StartNextJob()
+        public void AddJob(ITaskProvider taskProvider, int priority = 0)
         {
-            if (ActiveJob != null)
+            using (Trace.Log())
             {
-                ActiveJob.Completed -= OnJobCompleted;
-            }
-
-            lock (jobQueue)
-            {
-                if (jobQueue.Count == 0)
+                lock (jobQueue)
                 {
-                    ActiveJob = null;
+                    jobQueue.Add(priority, new Job(this, taskProvider, priority));
                 }
 
-                ActiveJob = jobQueue.Values[0];
-                jobQueue.RemoveAt(0);
-
+                if (ActiveJob == null)
+                {
+                    StartNextJob();
+                }
             }
-
-            if (ActiveJob != null)
-            {
-                ActiveJob.Start();
-                ActiveJob.Completed += OnJobCompleted;
-            }
-
-            ActiveJobChanged?.Invoke(ActiveJob);
         }
 
-        internal void DiscardAgent(string agentId)
+        private void StartNextJob()
         {
-            throw new NotImplementedException();
+            using (Trace.Log())
+            {
+                if (ActiveJob != null)
+                {
+                    ActiveJob.Completed -= OnJobCompleted;
+                }
+
+                lock (jobQueue)
+                {
+                    if (jobQueue.Count == 0)
+                    {
+                        ActiveJob = null;
+                    }
+
+                    ActiveJob = jobQueue.Values[0];
+                    jobQueue.RemoveAt(0);
+                }
+
+                if (ActiveJob != null)
+                {
+                    ActiveJob.Start();
+                    ActiveJob.Completed += OnJobCompleted;
+                }
+
+                ActiveJobChanged?.Invoke(ActiveJob);
+            }
+        }
+
+        internal void UpdateJob(Job job)
+        {
+            using (Trace.Log())
+            {
+                Coordinator.UpdateJob(job);
+            }
+        }
+
+        internal void ReleaseAgent(string agentId)
+        {
+            using (Trace.Log())
+            {
+                if (ActiveJob != null)
+                {
+                    Coordinator.ReleaseAgent(Identifier, ActiveJob.Name, agentId);
+                }
+            }
         }
 
         public void Dispose()
         {
-            Agents.Dispose();
-            Coordinator.Stop();
-
-            Monitor?.Dispose();
-
-            if (ActiveJob != null)
+            using (Trace.Log())
             {
-                ActiveJob.Completed -= OnJobCompleted;
-                ActiveJob = null;
-            }
+                Agents.Dispose();
+                Coordinator.Stop();
 
-            host.Dispose();
+                Monitor?.Dispose();
+
+                if (ActiveJob != null)
+                {
+                    ActiveJob.Completed -= OnJobCompleted;
+                    ActiveJob = null;
+                }
+
+                host.Dispose();
+            }
         }
     }
 }

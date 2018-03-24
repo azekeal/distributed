@@ -32,74 +32,95 @@ namespace Distributed
 
         public Agent(AgentConfig config, TaskExecutor taskExecutor)
         {
-            Instance = this;
+            using (Trace.Log())
+            {
+                Instance = this;
 
-            this.Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
-            this.SignalrUrl = $"127.0.0.1:{config.AgentPort}"; // TODO: get correct endpoint location
-            this.WebUrl = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
-            this.Config = config;
+                this.Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
+                this.SignalrUrl = $"127.0.0.1:{config.AgentPort}"; // TODO: get correct endpoint location
+                this.WebUrl = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
+                this.Config = config;
 
-            this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
-            this.taskExecutor.CompletedTask += CompleteTask;
+                this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
+                this.taskExecutor.CompletedTask += CompleteTask;
 
-            Console.WriteLine($"Identifier: {Identifier}");
+                Console.WriteLine($"Identifier: {Identifier}");
 
-            StartListeningForDispatchers();
-            RegisterWithCoordinator();
+                StartListeningForDispatchers();
+                RegisterWithCoordinator();
+            }
         }
 
         public void Dispose()
         {
-            taskExecutor.CompletedTask -= CompleteTask;
+            using (Trace.Log())
+            {
+                taskExecutor.CompletedTask -= CompleteTask;
 
-            coordinator.Dispose();
-            host.Dispose();
+                coordinator.Dispose();
+                host.Dispose();
+            }
         }
 
         private void StartListeningForDispatchers()
         {
-            dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
-
-            DispatcherConnections = new ClientConnectionHandler(dispatcherHubContext);
-            DispatcherConnections.EndpointAdded += AddDispatcher;
-            DispatcherConnections.EndpointRemoved += RemoveDispatcher;
-
-            var hostUrl = Permissions.GetHostUrl(Config.AgentPort);
-            host = WebApp.Start(new StartOptions(hostUrl)
+            using (Trace.Log())
             {
-                AppStartup = typeof(AgentStartup).FullName
-            });
-            Console.WriteLine("Server running on {0}", hostUrl);
+                dispatcherHubContext = GlobalHost.ConnectionManager.GetHubContext<DispatcherHub>();
+
+                DispatcherConnections = new ClientConnectionHandler(dispatcherHubContext);
+                DispatcherConnections.EndpointAdded += AddDispatcher;
+                DispatcherConnections.EndpointRemoved += RemoveDispatcher;
+
+                var hostUrl = Permissions.GetHostUrl(Config.AgentPort);
+                host = WebApp.Start(new StartOptions(hostUrl)
+                {
+                    AppStartup = typeof(AgentStartup).FullName
+                });
+                Console.WriteLine("Server running on {0}", hostUrl);
+            }
         }
 
         private void RegisterWithCoordinator()
         {
-            coordinator = new HubConnection($"http://{Config.CoordinatorAddress}", Identifier, SignalrUrl, WebUrl, "AgentHub");
-            coordinator.Start();
+            using (Trace.Log())
+            {
+                coordinator = new HubConnection($"http://{Config.CoordinatorAddress}", Identifier, SignalrUrl, WebUrl, "AgentHub");
+                coordinator.Start();
+            }
         }
 
         private void AddDispatcher(string name, string connectionInfo, EndpointConnectionInfo info)
         {
-            lock (dispatcherQueue)
+            using (Trace.Log())
             {
-                dispatcherQueue.Add(name);
-
-                if (activeDispatcher == null)
+                lock (dispatcherQueue)
                 {
-                    ActivateNextDispatcher();
+                    if (!dispatcherQueue.Contains(name))
+                    {
+                        dispatcherQueue.Add(name);
+                    }
+
+                    if (activeDispatcher == null)
+                    {
+                        ActivateNextDispatcher();
+                    }
                 }
             }
         }
 
         private void RemoveDispatcher(string name)
         {
-            lock (dispatcherQueue)
+            using (Trace.Log())
             {
-                dispatcherQueue.Remove(name);
-
-                if (activeDispatcher == name)
+                lock (dispatcherQueue)
                 {
-                    ActivateNextDispatcher();
+                    dispatcherQueue.Remove(name);
+
+                    if (activeDispatcher == name)
+                    {
+                        ActivateNextDispatcher();
+                    }
                 }
             }
         }
@@ -111,43 +132,55 @@ namespace Distributed
         /// </summary>
         private void ActivateNextDispatcher()
         {
-            if (activeDispatcher != null)
+            using (Trace.Log($"{activeDispatcher}: {ActiveDispatcher}"))
             {
-                ActiveDispatcher.SetAgentState(Identifier, false);
-            }
-
-            lock (dispatcherQueue)
-            {
-                if (dispatcherQueue.Count > 0)
+                if (activeDispatcher != null)
                 {
-                    activeDispatcher = dispatcherQueue[0];
-                    dispatcherQueue.Remove(activeDispatcher);
+                    ActiveDispatcher.SetAgentState(Identifier, false);
                 }
-            }
 
-            if (activeDispatcher != null)
-            {
-                ActiveDispatcher.SetAgentState(Identifier, true);
+                lock (dispatcherQueue)
+                {
+                    if (dispatcherQueue.Count > 0)
+                    {
+                        activeDispatcher = dispatcherQueue[0];
+                        dispatcherQueue.Remove(activeDispatcher);
+                    }
+                }
+
+                if (activeDispatcher != null)
+                {
+                    ActiveDispatcher.SetAgentState(Identifier, true);
+                }
             }
         }
 
         internal InitializationResult Initialize(object config)
         {
-            var task = taskExecutor.Initialize(config);
-            task.Wait();
-            return task.Result;
+            using (Trace.Log())
+            {
+                var task = taskExecutor.Initialize(config);
+                task.Wait();
+                return task.Result;
+            }
         }
 
         internal TaskResult[] StartTasks(IEnumerable<TaskItem> tasks)
         {
-            var task = taskExecutor.StartTasks(tasks.ToArray());
-            task.Wait();
-            return task.Result;
+            using (Trace.Log())
+            {
+                var task = taskExecutor.StartTasks(tasks.ToArray());
+                task.Wait();
+                return task.Result;
+            }
         }
 
         internal void CompleteTask(TaskItem task, TaskResult result)
         {
-            ActiveDispatcher.CompleteTask(task, result);
+            using (Trace.Log())
+            {
+                ActiveDispatcher.CompleteTask(task, result);
+            }
         }
     }
 }

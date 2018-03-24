@@ -43,152 +43,183 @@ namespace Distributed.Internal.Dispatcher
 
         public Agent(Distributed.Dispatcher dispatcher, EndpointConnectionInfo info) : base(info)
         {
-            this.dispatcher = dispatcher;
-            this.pendingTasks = new ConcurrentDictionary<string, TaskItem>();
-            this.activeTasks = new ConcurrentDictionary<string, TaskItem>();
+            using (Trace.Log())
+            {
+                this.dispatcher = dispatcher;
+                this.pendingTasks = new ConcurrentDictionary<string, TaskItem>();
+                this.activeTasks = new ConcurrentDictionary<string, TaskItem>();
 
-            this.dispatcher.ActiveJobChanged += OnActiveJobChanged;
+                this.dispatcher.ActiveJobChanged += OnActiveJobChanged;
 
-            this.connection = new AgentConnection(dispatcher, info);
-            this.connection.SetAgentState += SetAgentState;
-            this.connection.TaskCompleted += OnTaskCompleted;
-            this.connection.Start();
+                this.connection = new AgentConnection(dispatcher, info);
+                this.connection.StateChanged += (s) =>
+                {
+                    //if (s.OldState == ConnectionState.Connected && s.NewState == ConnectionState.Disconnected)
+                    //{
+                    //    dispatcher.ReleaseAgent(Identifier);
+                    //}
+                };
+                this.connection.SetAgentState += SetAgentState;
+                this.connection.TaskCompleted += OnTaskCompleted;
+                this.connection.Start();
+            }
         }
 
         public override void Dispose()
         {
-            Console.WriteLine($"Disposing {Identifier}");
-
-            Disposed?.Invoke(this);
-
-            disposed = true;
-
-            activeJob?.CancelTasks(pendingTasks.Values);
-            activeJob?.CancelTasks(activeTasks.Values);
-            activeJob = null;
-
-            activeTasks?.Clear();
-            activeTasks = null;
-
-            if (dispatcher != null)
+            using (Trace.Log())
             {
-                dispatcher.ActiveJobChanged -= OnActiveJobChanged;
-                dispatcher = null;
+                Console.WriteLine($"Disposing {Identifier}");
+
+                Disposed?.Invoke(this);
+
+                disposed = true;
+
+                activeJob?.CancelTasks(pendingTasks.Values);
+                activeJob?.CancelTasks(activeTasks.Values);
+                activeJob = null;
+
+                activeTasks?.Clear();
+                pendingTasks?.Clear();
+
+                if (dispatcher != null)
+                {
+                    dispatcher.ActiveJobChanged -= OnActiveJobChanged;
+                    dispatcher = null;
+                }
+
+                connection?.Dispose();
+                connection = null;
+
+                TaskStateChanged = null;
             }
-
-            connection?.Dispose();
-            connection = null;
-
-            TaskStateChanged = null;
         }
-        
-        private void OnActiveJobChanged(Job obj) => RequestTasks();
+
+        private void OnActiveJobChanged(Job obj)
+        {
+            using (Trace.Log())
+            {
+                RequestTasks();
+            }
+        }
 
         private void OnTaskCompleted(TaskItem task, TaskResult result)
         {
-            if (disposed)
+            using (Trace.Log())
             {
-                Console.WriteLine($"WARNING: Agent {Identifier} returning tasks ({task}) when disposed");
-                return;
+                if (disposed)
+                {
+                    Console.WriteLine($"WARNING: Agent {Identifier} returning tasks ({task}) when disposed");
+                    return;
+                }
+
+                if (!initialized)
+                {
+                    Console.WriteLine($"WARNING: Agent {Identifier} returning tasks ({task}) when not initialized");
+                    return;
+                }
+
+                Console.WriteLine($"Agent {Identifier} Task Completed {task}");
+
+                if (result.success)
+                {
+                    Console.WriteLine($"Task completed successfully {task.Identifier}");
+                }
+                else
+                {
+                    Console.WriteLine($"Task failed {task.Identifier}");
+                    Console.WriteLine(result.errorMessage);
+                }
+
+                activeTasks.TryRemove(task.Identifier, out var taskItem);
+
+                // exit agent lock before calling job to prevent potential deadlocks
+                activeJob.CompleteTask(task, result);
+
+                RequestTasks();
+
+                TaskStateChanged?.Invoke(this, TaskState.Completed, new TaskItem[] { task });
             }
-
-            if (!initialized)
-            {
-                Console.WriteLine($"WARNING: Agent {Identifier} returning tasks ({task}) when not initialized");
-                return;
-            }
-
-            Console.WriteLine($"Agent {Identifier} Task Completed {task}");
-
-            if (result.success)
-            {
-                Console.WriteLine($"Task completed successfully {task.Identifier}");
-            }
-            else
-            {
-                Console.WriteLine($"Task failed {task.Identifier}");
-                Console.WriteLine(result.errorMessage);
-            }
-
-            activeTasks.TryRemove(task.Identifier, out var taskItem);
-
-            // exit agent lock before calling job to prevent potential deadlocks
-            activeJob.CompleteTask(task, result);
-
-            RequestTasks();
-
-            TaskStateChanged?.Invoke(this, TaskState.Completed, new TaskItem[] { task });
         }
 
         private void SetAgentState(string agentId, bool activate)
         {
-            if (activate)
+            using (Trace.Log())
             {
-                Console.WriteLine($"Connected to agent {Identifier}");
+                if (activate)
+                {
+                    Console.WriteLine($"Connected to agent {Identifier}");
 
-                // Agent accepts, start giving it work
-                RequestTasks();
+                    // Agent accepts, start giving it work
+                    RequestTasks();
+                }
             }
         }
 
         private async void InitializeForJobAsync(Job job)
         {
-            initialized = false;
-            activeJob = job;
-
-            if (!initialized)
+            using (Trace.Log())
             {
-                var initResult = await connection.Initialize(job.Config);
-                if (initResult.success)
+                initialized = false;
+                activeJob = job;
+
+                if (!initialized)
                 {
-                    Console.WriteLine($"Agent initialized {Identifier}");
+                    var initResult = await connection.Initialize(job.Config).ConfigureAwait(true);
+                    if (initResult.success)
+                    {
+                        Console.WriteLine($"Agent initialized {Identifier}");
 
-                    initialized = true;
-                    Capacity = initResult.capacity;
-                    CapacityChanged?.Invoke(this, Capacity);
+                        initialized = true;
+                        Capacity = initResult.capacity;
+                        CapacityChanged?.Invoke(this, Capacity);
 
-                    RequestTasks();
-                }
-                else
-                {
-                    Console.WriteLine($"Agent initialization error {Identifier}");
-                    Console.WriteLine(initResult.errorMessage);
+                        RequestTasks();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Agent initialization error {Identifier}");
+                        Console.WriteLine(initResult.errorMessage);
 
-                    dispatcher.DiscardAgent(Identifier);
+                        dispatcher.ReleaseAgent(Identifier);
+                    }
                 }
             }
         }
 
         private void RequestTasks()
         {
-            if (disposed || dispatcher == null)
+            using (Trace.Log())
             {
-                return;
-            }
-
-            if (activeJob != dispatcher.ActiveJob)
-            {
-                // let the current job complete any tasks
-                if (activeTasks.Count > 0)
+                if (disposed || dispatcher == null)
                 {
                     return;
                 }
 
-                // start new job
-                InitializeForJobAsync(dispatcher.ActiveJob);
-                return;
-            }
+                if (activeJob != dispatcher.ActiveJob)
+                {
+                    // let the current job complete any tasks
+                    if (activeTasks.Count > 0)
+                    {
+                        return;
+                    }
 
-            // can't give out tasks until we're initialized
-            if (!initialized || disposed || activeJob == null)
-            {
-                return;
-            }
+                    // start new job
+                    InitializeForJobAsync(dispatcher.ActiveJob);
+                    return;
+                }
 
-            var queued = pendingTasks.Count + activeTasks.Count;
-            if (queued < Capacity)
-            {
-                StartTasks(Capacity - queued);
+                // can't give out tasks until we're initialized
+                if (!initialized || disposed || activeJob == null)
+                {
+                    return;
+                }
+
+                var queued = pendingTasks.Count + activeTasks.Count;
+                if (queued < Capacity)
+                {
+                    StartTasks(Capacity - queued);
+                }
             }
         }
 
@@ -197,90 +228,99 @@ namespace Distributed.Internal.Dispatcher
         /// </summary>
         private List<TaskItem> GetNewTasks(int count)
         {
-            // get tasks outside lock to avoid potential deadlock (job has its own lock)
-            var tasks = activeJob.GetTasks(count, notifyOnTasksAvailable: RequestTasks);
+            using (Trace.Log())
+            {            
+                // get tasks outside lock to avoid potential deadlock (job has its own lock)
+                var tasks = activeJob.GetTasks(count, notifyOnTasksAvailable: RequestTasks);
 
-            if (tasks.Count > 0)
-            {
-                foreach (var task in tasks)
+                if (tasks.Count > 0)
                 {
-                    Console.WriteLine("Add to pending: " + task);
-                    if (!pendingTasks.TryAdd(task.Identifier, task))
+                    foreach (var task in tasks)
                     {
-                        throw new Exception($"failed to add new task {task}");
+                        Console.WriteLine("Add to pending: " + task);
+                        if (!pendingTasks.TryAdd(task.Identifier, task))
+                        {
+                            throw new Exception($"failed to add new task {task}");
+                        }
                     }
                 }
-            }
 
-            return tasks;
+                return tasks;
+            }
         }
 
         private async void StartTasks(int count)
         {
-            var tasks = GetNewTasks(count);
-            Console.WriteLine($"StartTasks: {tasks.Count}/{count}");
-
-            if (tasks.Count > 0)
+            using (Trace.Log())
             {
-                TaskStateChanged?.Invoke(this, TaskState.Pending, tasks);
+                var tasks = GetNewTasks(count);
+                Console.WriteLine($"StartTasks: {tasks.Count}/{count}");
 
-                try
+                if (tasks.Count > 0)
                 {
-                    var results = await connection.StartTasks(tasks);
-                    ProcessStartTaskResults(tasks, results);
-                }
-                catch(Exception e)
-                {
-                    Console.WriteLine($"Failed to start tasks ({e.Message})");
+                    TaskStateChanged?.Invoke(this, TaskState.Pending, tasks);
+
+                    try
+                    {
+                        var results = await connection.StartTasks(tasks);
+                        ProcessStartTaskResults(tasks, results);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Failed to start tasks ({e.Message})");
+                    }
                 }
             }
         }
 
         private void ProcessStartTaskResults(List<TaskItem> tasks, TaskResult[] results)
         {
-            Debug.Assert(results.Length == tasks.Count);
-            Console.WriteLine("ProcessStartTaskResults");
-
-            var successful = new List<TaskItem>();
-            var failed = new List<TaskItem>();
-
-            for (int i = 0; i < results.Length; ++i)
+            using (Trace.Log())
             {
-                var task = tasks[i];
-                var result = results[i];
+                Debug.Assert(results.Length == tasks.Count);
+                Console.WriteLine("ProcessStartTaskResults");
 
-                if (result.success)
+                var successful = new List<TaskItem>();
+                var failed = new List<TaskItem>();
+
+                for (int i = 0; i < results.Length; ++i)
                 {
-                    Console.WriteLine($"Task started {task.Identifier}");
-                    successful.Add(task);
+                    var task = tasks[i];
+                    var result = results[i];
 
-                    if (!activeTasks.TryAdd(task.Identifier, task))
+                    if (result.success)
                     {
-                        throw new Exception($"Failed to add task {task}");
+                        Console.WriteLine($"Task started {task.Identifier}");
+                        successful.Add(task);
+
+                        if (!activeTasks.TryAdd(task.Identifier, task))
+                        {
+                            throw new Exception($"Failed to add task {task}");
+                        }
                     }
+                    else
+                    {
+                        Console.WriteLine($"Failed to start task {task.Identifier}");
+                        Console.WriteLine(result.errorMessage);
+                        failed.Add(task);
+
+                        // we wan't all calls to job to be outside the lock to prevent potential deadlocks
+                        activeJob.CompleteTask(task, result);
+
+                    }
+
+                    pendingTasks.TryRemove(task.Identifier, out var pendingTask);
                 }
-                else
+
+                if (successful.Count > 0)
                 {
-                    Console.WriteLine($"Failed to start task {task.Identifier}");
-                    Console.WriteLine(result.errorMessage);
-                    failed.Add(task);
-
-                    // we wan't all calls to job to be outside the lock to prevent potential deadlocks
-                    activeJob.CompleteTask(task, result);
-
+                    TaskStateChanged.Invoke(this, TaskState.Active, successful);
                 }
 
-                pendingTasks.TryRemove(task.Identifier, out var pendingTask);
-            }
-
-            if (successful.Count > 0)
-            {
-                TaskStateChanged.Invoke(this, TaskState.Active, successful);
-            }
-
-            if (failed.Count > 0)
-            {
-                TaskStateChanged.Invoke(this, TaskState.Failed, failed);
+                if (failed.Count > 0)
+                {
+                    TaskStateChanged.Invoke(this, TaskState.Failed, failed);
+                }
             }
         }
     }

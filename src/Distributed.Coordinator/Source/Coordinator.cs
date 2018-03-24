@@ -18,9 +18,11 @@ namespace Distributed
     {
         public static Coordinator Instance { get;private set; }
         public ClientConnectionHandler DispatcherConnections { get; private set; }
+
         public ClientConnectionHandler AgentConnections { get; private set; }
         public CoordinatorConfig Config { get; private set; }
 
+        private AgentAllocator agentAllocator;
         private IHubContext dispatcherHubContext;
         private IHubContext agentHubContext;
         private IDisposable host;
@@ -29,14 +31,38 @@ namespace Distributed
         public Coordinator() : this(new CoordinatorConfig()) { }
         public Coordinator(CoordinatorConfig config)
         {
-            Instance = this;
-            Config = config;
-
-            StartListeningForDispatchersAndAgents();
-
-            if (config.Monitor)
+            using (Trace.Log())
             {
-                monitor = new CoordinatorMonitor(this);
+                Instance = this;
+                Config = config;
+
+                agentAllocator = new AgentAllocator();
+                agentAllocator.DispatcherAssignAgent += OnDispatcherAssignAgent;
+                agentAllocator.DispatcherRemoveAgent += OnDispatcherRemoveAgent;
+
+                StartListeningForDispatchersAndAgents();
+
+                if (config.Monitor)
+                {
+                    monitor = new CoordinatorMonitor(this);
+                }
+            }
+        }
+
+        private void OnDispatcherRemoveAgent(string dispatcherId, EndpointConnectionInfo agentInfo)
+        {
+            using (Trace.Log())
+            {
+                DispatcherConnections[dispatcherId].EndpointRemoved(agentInfo.name);
+            }
+        }
+
+        private void OnDispatcherAssignAgent(string dispatcherId, EndpointConnectionInfo agentInfo)
+        {
+            var connection = DispatcherConnections[dispatcherId];
+            using (Trace.Log($"{connection}[{dispatcherId}].EndpointAdded({agentInfo})"))
+            {
+                connection.EndpointAdded(agentInfo);
             }
         }
 
@@ -47,6 +73,7 @@ namespace Distributed
 
             DispatcherConnections = new ClientConnectionHandler(dispatcherHubContext);
             DispatcherConnections.EndpointAdded += OnDispatcherAdded;
+            DispatcherConnections.EndpointRemoved += OnDispatcherRemoved;
 
             AgentConnections = new ClientConnectionHandler(agentHubContext);
             AgentConnections.EndpointAdded += OnAgentAdded;
@@ -62,29 +89,71 @@ namespace Distributed
 
         public void Dispose()
         {
-            host.Dispose();
+            using (Trace.Log())
+            {
+                agentAllocator.Dispose();
 
-            monitor?.Dispose();
-            monitor = null;
+                host.Dispose();
+
+                monitor?.Dispose();
+                monitor = null;
+            }
         }
 
-        private void OnDispatcherAdded(string name, string connectionId, EndpointConnectionInfo info)
+        private void OnDispatcherAdded(string dispatcherId, string connectionId, EndpointConnectionInfo info)
         {
-            // Notify new dispatcher of available agents
-            // TODO: segment agents/dispatchers by subnet
-            dispatcherHubContext.Clients.Client(connectionId).EndpointListUpdated(AgentConnections.Endpoints.Values);
+            using (Trace.Log())
+            {
+                agentAllocator.AddDispatcher(dispatcherId, info);
+            }
         }
 
-        private void OnAgentAdded(string name, string endpointData, EndpointConnectionInfo info)
+        private void OnDispatcherRemoved(string dispatcherId)
         {
-            // Notify known dispatchers of new agent
-            dispatcherHubContext.Clients.All.EndpointAdded(info);
+            using (Trace.Log())
+            {
+                agentAllocator.RemoveDispatcher(dispatcherId);
+            }
         }
 
-        private void OnAgentRemoved(string name)
+        private void OnAgentAdded(string agentId, string endpointData, EndpointConnectionInfo info)
         {
-            // Notify known dispatchers agent has died
-            dispatcherHubContext.Clients.All.EndpointRemoved(name);
+            using (Trace.Log())
+            {
+                agentAllocator.AddAgent(agentId, info);
+            }
+        }
+
+        private void OnAgentRemoved(string agentId)
+        {
+            using (Trace.Log())
+            {
+                agentAllocator.RemoveAgent(agentId);
+            }
+        }
+
+        internal void UpdateJob(string dispatcherId, string jobId, int jobPriority, int jobTaskCount)
+        {
+            using (Trace.Log())
+            {
+                agentAllocator.UpdateJob(dispatcherId, jobId, jobPriority, jobTaskCount);
+            }
+        }
+
+        internal void ClearJob(string dispatcherId)
+        {
+            using (Trace.Log())
+            {
+                agentAllocator.ClearJob(dispatcherId);
+            }
+        }
+
+        internal void ReleaseAgent(string dispatcherId, string jobId, string agentId)
+        {
+            using (Trace.Log())
+            {
+                agentAllocator.ReleaseAgent(dispatcherId, jobId, agentId);
+            }
         }
     }
 }

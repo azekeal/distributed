@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
 
 namespace Distributed.Internal.Client
 {
@@ -14,89 +14,122 @@ namespace Distributed.Internal.Client
 
         public EndpointPool()
         {
+            using (Trace.Log())
+            {
+            }
         }
 
         public virtual Endpoint CreateEndpoint(EndpointConnectionInfo info)
         {
-            return new Endpoint(info);
+            using (Trace.Log($"{info}"))
+            { 
+                return new Endpoint(info);
+            }
         }
 
         public void Add(EndpointConnectionInfo info)
         {
-            lock (lockObj)
+            using (Trace.Log($"{info}"))
             {
-                Debug.Assert(!endpoints.ContainsKey(info.name));
-                endpoints.TryAdd(info.name, CreateEndpoint(info));
+                lock (lockObj)
+                {
+                    if (!endpoints.ContainsKey(info.name))
+                    {
+                        foreach (var v in endpoints.Values)
+                        {
+                            // check for rebooted agents on the same ip/port
+                            if (v.Info.signalrUrl == info.signalrUrl)
+                            {
+                                Remove(v.Name);
+                                break; ;
+                            }
+                        }
+
+                        endpoints.TryAdd(info.name, CreateEndpoint(info));
+                    }
+                }
             }
         }
 
         public void Remove(string name)
         {
-            lock (lockObj)
+            using (Trace.Log($"{name}"))
             {
-                if (endpoints.TryRemove(name, out var endpoint))
+                lock (lockObj)
                 {
-                    endpoint.Dispose();
+                    if (endpoints.TryRemove(name, out var endpoint))
+                    {
+                        endpoint.Dispose();
+                    }
                 }
             }
         }
 
         public void Clear()
         {
-            lock (lockObj)
+            using (Trace.Log())
             {
-                foreach (var endpoint in endpoints.Values)
+                lock (lockObj)
                 {
-                    endpoint.Dispose();
-                }
+                    foreach (var endpoint in endpoints.Values)
+                    {
+                        endpoint.Dispose();
+                    }
 
-                endpoints.Clear();
+                    endpoints.Clear();
+                }
             }
         }
 
         public void Update(IEnumerable<EndpointConnectionInfo> list)
         {
-            lock (lockObj)
+            using (Trace.Log($"{string.Join(", ", list.Select(e => e.ToString()))}"))
             {
-                var add = new List<EndpointConnectionInfo>();
-                var marked = new HashSet<string>();
-                var remove = new List<string>();
-
-                foreach (var item in list)
+                lock (lockObj)
                 {
-                    if (!endpoints.ContainsKey(item.name))
+                    var add = new List<EndpointConnectionInfo>();
+                    var marked = new HashSet<string>();
+                    var remove = new List<string>();
+
+                    foreach (var item in list)
                     {
-                        add.Add(item);
+                        if (!endpoints.ContainsKey(item.name))
+                        {
+                            add.Add(item);
+                        }
+                        else
+                        {
+                            marked.Add(item.name);
+                        }
                     }
-                    else
+
+                    foreach (var name in endpoints.Keys)
                     {
-                        marked.Add(item.name);
+                        if (!marked.Contains(name))
+                        {
+                            remove.Add(name);
+                        }
                     }
-                }
 
-                foreach (var name in endpoints.Keys)
-                {
-                    if (!marked.Contains(name))
+                    foreach (var info in add)
                     {
-                        remove.Add(name);
+                        Add(info);
                     }
-                }
 
-                foreach (var info in add)
-                {
-                    Add(info);
-                }
-
-                foreach (var name in remove)
-                {
-                    Remove(name);
+                    foreach (var name in remove)
+                    {
+                        Remove(name);
+                    }
                 }
             }
         }
 
         public void Dispose()
         {
-            Clear();
+            using (Trace.Log())
+            {
+                Clear();
+            }
         }
     }
 }

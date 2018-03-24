@@ -55,6 +55,7 @@
     <Compile Include="Source\Util\ConnectionMapping.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Source\Util\Permissions.cs" />
+    <Compile Include="Source\Util\Trace.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

@@ -39,14 +39,14 @@ namespace Distributed.Internal.Server
 
         public void OnDisconnect(string name, string connectionId)
         {
+            EndpointRemoved?.Invoke(name);
+
             if (Connections.Remove(name, connectionId))
             {
                 lock (Endpoints)
                 {
                     Endpoints.Remove(name);
                 }
-
-                EndpointRemoved?.Invoke(name);
             }
         }
 

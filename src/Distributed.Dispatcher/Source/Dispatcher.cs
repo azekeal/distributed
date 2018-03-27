@@ -16,13 +16,13 @@ namespace Distributed
         public string Identifier { get; private set; }
         public string SignalrUrl { get; private set; }
         public string WebUrl { get; private set; }
-        public CoordinatorConnection Coordinator { get; private set; }
         public Job ActiveJob { get; private set; }
         public DispatcherConfig Config { get; private set; }
         public DispatcherMonitor Monitor { get; private set; }
 
         public event Action<Job> ActiveJobChanged;
 
+        internal CoordinatorConnection Coordinator { get; private set; }
         internal AgentPool Agents { get; private set; }
 
         private SortedList<int, Job> jobQueue;
@@ -66,6 +66,9 @@ namespace Distributed
                 Console.WriteLine("Server running on {0}", hostUrl);
             }
         }
+
+        public int AgentCount => Agents.Count;
+        public JobStats JobStats => ActiveJob?.Stats ?? new JobStats();
 
         private void OnCoordinatorStateChanged(StateChange stateChange)
         {

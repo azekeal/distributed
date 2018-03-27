@@ -2,7 +2,7 @@
 <package >
   <metadata>
     <id>Distributed</id>
-    <version>2018.0326.0</version>
+    <version>2018.0326.2</version>
     <authors>Tony Ambrus</authors>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>Set of assemblies that provides dispatcher-coordinator-agent communication and web-based monitor</description>

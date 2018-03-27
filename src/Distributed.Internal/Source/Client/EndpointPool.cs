@@ -9,8 +9,10 @@ namespace Distributed.Internal.Client
 
     public class EndpointPool : IDisposable
     {
-        private object lockObj = new object();
         protected ConcurrentDictionary<string, Endpoint> endpoints = new ConcurrentDictionary<string, Endpoint>();
+        private object lockObj = new object();
+
+        public int Count => endpoints.Count;
 
         public EndpointPool()
         {

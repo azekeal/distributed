@@ -3,9 +3,18 @@ using Distributed.Internal.Util;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Distributed.Internal.Dispatcher
 {
+    public struct JobStats
+    {
+        public int pending;
+        public int running;
+        public int completed;
+        public int succeeded;
+        public int failed;
+    }
 
     public class Job : IDisposable
     {
@@ -22,6 +31,7 @@ namespace Distributed.Internal.Dispatcher
 
         private ConcurrentQueue<TaskItem> returnedTasks = new ConcurrentQueue<TaskItem>();
         private ITaskProvider taskProvider;
+        private JobStats stats = new JobStats();
 
         public Job(Distributed.Dispatcher dispatcher, ITaskProvider taskProvider, int priority)
         {
@@ -33,8 +43,12 @@ namespace Distributed.Internal.Dispatcher
                 this.TaskCount = taskProvider.TaskCount;
                 this.taskProvider = taskProvider;
                 this.taskProvider.TasksAdded += NotifyTasksAvailable;
+
+                stats.pending = taskProvider.TaskCount;
             }
         }
+
+        public JobStats Stats => stats;
 
         public void Start()
         {
@@ -50,29 +64,33 @@ namespace Distributed.Internal.Dispatcher
             {
                 var list = new List<TaskItem>();
 
-                while (capacity > 0 && returnedTasks.Count > 0)
+                var count = capacity;
+                while (count > 0 && returnedTasks.Count > 0)
                 {
                     if (returnedTasks.TryDequeue(out var taskItem))
                     {
                         list.Add(taskItem);
-                        capacity--;
-
+                        count--;
                     }
                 }
 
-                while (capacity > 0 && taskProvider.TryGetTask(out var task))
+                while (count > 0 && taskProvider.TryGetTask(out var task))
                 {
                     list.Add(task);
-                    capacity--;
+                    count--;
                 }
 
                 // don't have enough tasks to give the requestor
-                if (capacity > 0)
+                if (count > 0)
                 {
                     Console.WriteLine("Waiting for tasks: " + notifyOnTasksAvailable);
                     TasksAvailable -= notifyOnTasksAvailable;
                     TasksAvailable += notifyOnTasksAvailable;
                 }
+
+                var used = capacity - count;
+                Interlocked.Add(ref stats.pending, -used);
+                Interlocked.Add(ref stats.running, used);
 
                 return list;
             }
@@ -89,6 +107,17 @@ namespace Distributed.Internal.Dispatcher
                 else if (taskProvider.TaskCount == 0)
                 {
                     Completed?.Invoke();
+                }
+
+                Interlocked.Decrement(ref stats.running);
+                Interlocked.Increment(ref stats.completed);
+                if (result.success)
+                {
+                    Interlocked.Increment(ref stats.succeeded);
+                }
+                else
+                {
+                    Interlocked.Increment(ref stats.failed);
                 }
 
                 Dispatcher.UpdateJob(this);
@@ -117,6 +146,9 @@ namespace Distributed.Internal.Dispatcher
                 foreach (var task in tasks)
                 {
                     returnedTasks.Enqueue(task);
+
+                    Interlocked.Decrement(ref stats.running);
+                    Interlocked.Increment(ref stats.pending);
                 }
 
                 if (returnedTasks.Count > 0)

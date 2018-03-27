@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Distributed.Dispatcher</id>
+    <version>2018.0327.5</version>
+    <authors>Tony Ambrus</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Set of assemblies that provides distributed dispatcher communication and web-based monitor</description>
+    <tags>Distributed</tags>
+    <dependencies>
+      <dependency id="Distributed.Internal" version="2018.0327.0" />
+      <dependency id="Distributed.Core" version="2018.0327.0" />
+      <dependency id="Distributed.Monitor" version="2018.0327.0" />
+      <dependency id="Microsoft.AspNet.SignalR.Core" version="2.2.3" />
+      <dependency id="Microsoft.Owin" version="4.0.0" />
+      <dependency id="Microsoft.Owin.Cors" version="4.0.0" />
+      <dependency id="Microsoft.Owin.Diagnostics" version="4.0.0" />
+      <dependency id="Microsoft.Owin.Host.HttpListener" version="4.0.0" />
+      <dependency id="Microsoft.Owin.Hosting" version="4.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\..\bin\Debug\Distributed.Dispatcher.dll" target="lib\4.7.1\" />
+    <file src="..\..\bin\Debug\Distributed.Dispatcher.pdb" target="lib\4.7.1\" />
+    <file src="..\..\bin\Debug\Content\Dispatcher\**" target="lib\4.7.1\" />
+  </files>
+</package>

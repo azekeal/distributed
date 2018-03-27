@@ -55,23 +55,28 @@ namespace Distributed
         {
             // all public functions should have locks since we concurrent access
             lock (lockObj)
-            using (Trace.Log($"agentId: {agentId}, info: {info}"))
             {
-                if (agents.ContainsKey(agentId))
+                using (Trace.Log($"agentId: {agentId}, info: {info}"))
                 {
-                    return;
+                    if (agents.ContainsKey(agentId))
+                    {
+                        return;
+                    }
+
+                    var agent = new AgentInfo()
+                    {
+                        id = agentId,
+                        jobId = null,
+                        info = info,
+                    };
+                    agents[agentId] = agent;
+
+                    if (!AssignAgentAsLoopback(agentId))
+                    {
+                        unassignedAgents.Add(agentId);
+                        UpdateAllocations();
+                    }
                 }
-
-                agents[agentId] = new AgentInfo()
-                {
-                    id = agentId,
-                    jobId = null,
-                    info = info,
-                };
-
-                unassignedAgents.Add(agentId);
-
-                UpdateAllocations();
             }
         }
 
@@ -80,14 +85,16 @@ namespace Distributed
         {
             // all public functions should have locks since we concurrent access
             lock (lockObj)
-            using (Trace.Log($"agentId: {agentId}"))
             {
-                AssignAgent(agentId, null);
+                using (Trace.Log($"agentId: {agentId}"))
+                {
+                    AssignAgent(agentId, null);
 
-                unassignedAgents.Remove(agentId);
-                agents.Remove(agentId);
+                    unassignedAgents.Remove(agentId);
+                    agents.Remove(agentId);
 
-                UpdateAllocations();
+                    UpdateAllocations();
+                }
             }
         }
 
@@ -118,61 +125,125 @@ namespace Distributed
         {
             // all public functions should have locks since we concurrent access
             lock (lockObj)
-            using (Trace.Log($"dispatcherId: {dispatcherId}, jobId: {jobId}, priority: {priority}, taskCount: {taskCount}"))
             {
-                var prevTaskCount = 0;
-
-                if (dispatchers.TryGetValue(dispatcherId, out var dispatcher))
+                using (Trace.Log($"dispatcherId: {dispatcherId}, jobId: {jobId}, priority: {priority}, taskCount: {taskCount}"))
                 {
-                    if (dispatcher.jobId != null && dispatcher.jobId != jobId)
+                    var prevTaskCount = 0;
+
+                    if (dispatchers.TryGetValue(dispatcherId, out var dispatcher))
                     {
-                        ClearJob(dispatcherId);
+                        if (dispatcher.jobId != null && dispatcher.jobId != jobId)
+                        {
+                            ClearJob(dispatcherId);
+                        }
+
+                        dispatcher.jobId = jobId;
+                    }
+                    else
+                    {
+                        throw new Exception("Job doesn't belong to a registered dispatcher");
                     }
 
-                    dispatcher.jobId = jobId;
-                }
-                else
-                {
-                    throw new Exception("Job doesn't belong to a registered dispatcher");
-                }
-
-                if (!jobs.TryGetValue(jobId, out var job))
-                {
-                    job = new JobInfo
+                    bool isNewJob = false;
+                    if (!jobs.TryGetValue(jobId, out var job))
                     {
-                        dispatcherId = dispatcherId,
-                        id = jobId
-                    };
-                    jobs[jobId] = job;
+                        job = new JobInfo
+                        {
+                            dispatcherId = dispatcherId,
+                            id = jobId
+                        };
+                        jobs[jobId] = job;
+
+                        isNewJob = true;
+                    }
+                    else
+                    {
+                        prevTaskCount = job.taskCount;
+                    }
+
+                    job.priority = priority;
+                    job.taskCount = taskCount;
+
+                    // update total tasks
+                    totalTasks += taskCount - prevTaskCount;
+
+                    (job.queuePriorityValue, job.maxAgents) = CalculateJobPriority(job);
+
+                    UpdateJobAgentSaturation(job);
+
+                    if (isNewJob)
+                    {
+                        foreach (var agentId in GetLoopbackAgents(dispatcherId))
+                        {
+                            AssignAgentAsLoopback(agentId);
+                        }
+                    }
+
+                    UpdateAllocations();
                 }
-                else
-                {
-                    prevTaskCount = job.taskCount;
-                }
-
-                job.priority = priority;
-                job.taskCount = taskCount;
-
-                // update total tasks
-                totalTasks += taskCount - prevTaskCount;
-
-                (job.queuePriorityValue, job.maxAgents) = CalculateJobPriority(job);
-
-                UpdateJobAgentSaturation(job);
-
-                UpdateAllocations();
             }
+        }
+
+        /// <summary>
+        /// Dispatchers on the same machine are prioritized by the agents
+        /// </summary>
+        /// <param name="agentId"></param>
+        /// <returns></returns>
+        private bool AssignAgentAsLoopback(string agentId)
+        {
+            var dispatcherId = GetLoopbackDispatcher(agentId);
+            if (dispatcherId == null)
+            {
+                return false;
+            }
+
+            var jobId = dispatchers[dispatcherId].jobId;
+            if (jobId == null)
+            {
+                return false;
+            }
+
+            AssignAgent(agentId, jobId);
+            return true;
+        }
+
+        private IEnumerable<string> GetLoopbackAgents(string dispatcherId)
+        {
+            if (dispatchers.TryGetValue(dispatcherId, out var dispatcher))
+            {
+                return agents.Where(pair => pair.Value.info.MatchesHost(dispatcher.info)).Select(pair => pair.Key);
+            }
+
+            return Enumerable.Empty<string>();
+        }
+
+        private string GetLoopbackDispatcher(string agentId)
+        {
+            if (!agents.TryGetValue(agentId, out var agent))
+            {
+                return null;
+            }
+
+            var dispatcher = dispatchers.Values.FirstOrDefault(d => d.info.MatchesHost(agent.info));
+            if (dispatcher == null)
+            {
+                return null;
+            }
+
+            return dispatcher.id;
         }
 
         public void ReleaseAgent(string dispatcherId, string jobId, string agentId)
         {
             // all public functions should have locks since we concurrent access
             lock (lockObj)
-            using (Trace.Log($"dispatcherId: {dispatcherId}, jobId: {jobId}, agentId: {agentId}"))
             {
-                if (agents.TryGetValue(agentId, out var agent) && agent.jobId == jobId)
+                using (Trace.Log($"dispatcherId: {dispatcherId}, jobId: {jobId}, agentId: {agentId}"))
                 {
-                    AssignAgent(agentId, null);
+                    if (agents.TryGetValue(agentId, out var agent) && agent.jobId == jobId)
+                    {
+                        AssignAgent(agentId, null);
+                    }
                 }
             }
         }
@@ -181,17 +252,19 @@ namespace Distributed
         {
             // all public functions should have locks since we concurrent access
             lock (lockObj)
-            using (Trace.Log($"dispatcherId: {dispatcherId}, info: {info}"))
             {
-                if (!dispatchers.TryGetValue(dispatcherId, out var dispatcher))
+                using (Trace.Log($"dispatcherId: {dispatcherId}, info: {info}"))
                 {
-                    dispatcher = new DispatcherInfo
+                    if (!dispatchers.TryGetValue(dispatcherId, out var dispatcher))
                     {
-                        id = dispatcherId,
-                        info = info
-                    };
+                        dispatcher = new DispatcherInfo
+                        {
+                            id = dispatcherId,
+                            info = info
+                        };
 
-                    dispatchers[dispatcherId] = dispatcher;
+                        dispatchers[dispatcherId] = dispatcher;
+                    }
                 }
             }
         }
@@ -200,12 +273,14 @@ namespace Distributed
         {
             // all public functions should have locks since we concurrent access
             lock (lockObj)
-            using (Trace.Log($"dispatcherId: {dispatcherId}"))
             {
-                if (dispatchers.TryGetValue(dispatcherId, out var dispatcher))
+                using (Trace.Log($"dispatcherId: {dispatcherId}"))
                 {
-                    ClearJob(dispatcherId);
-                    dispatchers.Remove(dispatcherId);
+                    if (dispatchers.TryGetValue(dispatcherId, out var dispatcher))
+                    {
+                        ClearJob(dispatcherId);
+                        dispatchers.Remove(dispatcherId);
+                    }
                 }
             }
         }

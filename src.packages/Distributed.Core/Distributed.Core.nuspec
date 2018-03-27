@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Distributed.Core</id>
+    <version>2018.0327.5</version>
+    <authors>Tony Ambrus</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Core assembly used with Distributed Coordinator/Agent/Dispatcher</description>
+    <tags>Distributed</tags>
+  </metadata>
+  <files>
+    <file src="..\..\bin\Debug\Distributed.Core.dll" target="lib\4.7.1\" />
+    <file src="..\..\bin\Debug\Distributed.Core.pdb" target="lib\4.7.1\" />
+  </files>
+</package>

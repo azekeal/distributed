@@ -1,5 +1,6 @@
 ﻿using Distributed.Internal;
 using Distributed.Internal.Dispatcher;
+using Distributed.Internal.Source.Util;
 using Distributed.Internal.Util;
 using Distributed.Monitor;
 using Microsoft.AspNet.SignalR.Client;
@@ -36,9 +37,11 @@ namespace Distributed
             {
                 Instance = this;
 
+                var ipaddress = IPUtil.GetLocalIpAddress();
+
                 this.Identifier = $"{Constants.Names.Dispatcher}_{Guid.NewGuid()}";
-                this.SignalrUrl = $"127.0.0.1:{config.DispatcherPort}"; // TODO: get the local ip address
-                this.WebUrl = $"127.0.0.1:{config.WebPort}";
+                this.SignalrUrl = $"{ipaddress}:{config.DispatcherPort}";
+                this.WebUrl = $"{ipaddress}:{config.WebPort}";
                 this.Config = config;
 
                 Console.WriteLine($"Identifier: {Identifier}");
@@ -159,7 +162,8 @@ namespace Distributed
             using (Trace.Log())
             {
                 Agents.Dispose();
-                Coordinator.Stop();
+
+                Coordinator.Dispose();
 
                 Monitor?.Dispose();
 

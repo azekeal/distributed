@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Distributed.Internal</id>
+    <version>2018.0327.5</version>
+    <authors>Tony Ambrus</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Internal assembly used with Distributed Coordinator/Agent/Dispatcher</description>
+    <tags>Distributed</tags>
+    <dependencies>
+      <dependency id="Distributed.Core" version="2018.0327.0" />
+      <dependency id="Microsoft.AspNet.SignalR.Core" version="2.2.3" />
+      <dependency id="Microsoft.AspNet.SignalR.Client" version="2.2.3" />
+      <dependency id="Microsoft.Owin" version="4.0.0" />
+      <dependency id="Microsoft.Owin.Security" version="4.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\..\bin\Debug\Distributed.Internal.dll" target="lib\4.7.1\" />
+    <file src="..\..\bin\Debug\Distributed.Internal.pdb" target="lib\4.7.1\" />
+  </files>
+</package>

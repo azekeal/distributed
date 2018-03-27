@@ -2,6 +2,7 @@
 using Distributed.Internal;
 using Distributed.Internal.Client;
 using Distributed.Internal.Server;
+using Distributed.Internal.Source.Util;
 using Distributed.Internal.Util;
 using Microsoft.AspNet.SignalR;
 using Microsoft.Owin.Hosting;
@@ -36,9 +37,11 @@ namespace Distributed
             {
                 Instance = this;
 
+                var ipaddress = IPUtil.GetLocalIpAddress();
+
                 this.Identifier = $"{Constants.Names.Agent}_{Guid.NewGuid()}";
-                this.SignalrUrl = $"127.0.0.1:{config.AgentPort}"; // TODO: get correct endpoint location
-                this.WebUrl = $"127.0.0.1:{config.WebPort}"; // TODO: get correct endpoint location
+                this.SignalrUrl =  $"{ipaddress}:{config.AgentPort}";
+                this.WebUrl = $"{ipaddress}:{config.WebPort}";
                 this.Config = config;
 
                 this.taskExecutor = taskExecutor ?? throw new NullReferenceException("taskExecutor can't be null");
@@ -159,9 +162,21 @@ namespace Distributed
         {
             using (Trace.Log())
             {
-                var task = taskExecutor.Initialize(config);
-                task.Wait();
-                return task.Result;
+                try
+                {
+                    var task = taskExecutor.Initialize(config);
+                    task.Wait();
+                    return task.Result;
+                }
+                catch (Exception e)
+                {
+                    return new InitializationResult
+                    {
+                        success = false,
+                        errorMessage = e.ToString(),
+                        capacity = 0,
+                    };
+                }
             }
         }
 

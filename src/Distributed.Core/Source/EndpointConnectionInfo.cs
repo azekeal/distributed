@@ -1,4 +1,6 @@
-﻿namespace Distributed.Core
+﻿using System;
+
+namespace Distributed.Core
 {
     public struct EndpointConnectionInfo
     {
@@ -14,5 +16,21 @@
         }
 
         public override string ToString() => $"[name:{name}, signalrUrl:{signalrUrl}, webUrl:{webUrl}]";
+
+        public bool MatchesHost(EndpointConnectionInfo other)
+        {
+            return GetAbsoluteUri().Host.Equals(other.GetAbsoluteUri().Host, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private Uri GetAbsoluteUri()
+        {
+            var url = signalrUrl;
+            if (!url.StartsWith("http://"))
+            {
+                url = "http://" + url;
+            }
+
+            return new Uri(url);
+        }
     }
 }

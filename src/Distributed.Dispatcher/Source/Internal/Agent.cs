@@ -163,9 +163,11 @@ namespace Distributed.Internal.Dispatcher
                 initialized = false;
                 activeJob = job;
 
-                if (!initialized)
+                InitializationResult initResult;
+
+                try
                 {
-                    var initResult = await connection.Initialize(job.Config).ConfigureAwait(true);
+                    initResult = await connection.Initialize(job.Config).ConfigureAwait(true);
                     if (initResult.success)
                     {
                         Console.WriteLine($"Agent initialized {Identifier}");
@@ -175,15 +177,22 @@ namespace Distributed.Internal.Dispatcher
                         CapacityChanged?.Invoke(this, Capacity);
 
                         RequestTasks();
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Agent initialization error {Identifier}");
-                        Console.WriteLine(initResult.errorMessage);
-
-                        dispatcher.ReleaseAgent(Identifier);
+                        return;
                     }
                 }
+                catch(Exception e)
+                {
+                    initResult = new InitializationResult
+                    {
+                        success = false,
+                        errorMessage = e.ToString()
+                    };
+                }
+
+                Console.WriteLine($"Agent initialization error {Identifier}");
+                Console.WriteLine(initResult.errorMessage);
+
+                dispatcher.ReleaseAgent(Identifier);
             }
         }
 

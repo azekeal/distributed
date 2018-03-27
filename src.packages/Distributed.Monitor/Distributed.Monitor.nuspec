@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Distributed.Monitor</id>
+    <version>2018.0327.5</version>
+    <authors>Tony Ambrus</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Internal assembly used with Distributed Coordinator/Dispatcher to provide web-based monitoring</description>
+    <tags>Distributed</tags>
+  </metadata>
+  <files>
+    <file src="..\..\bin\Debug\Distributed.Monitor.dll" target="lib\4.7.1\" />
+    <file src="..\..\bin\Debug\Distributed.Monitor.pdb" target="lib\4.7.1\" />
+  </files>
+</package>

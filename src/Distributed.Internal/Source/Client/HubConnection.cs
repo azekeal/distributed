@@ -95,7 +95,7 @@ namespace Distributed.Internal.Client
             {
                 reconnect = false;
 
-                Stop();
+                //Stop();
 
                 hubConnection.StateChanged -= OnStateChanged;
                 hubConnection.Dispose();

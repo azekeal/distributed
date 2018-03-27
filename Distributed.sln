@@ -29,7 +29,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Test", "Test", "{99DF3E95-6
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{CD14C8FB-8E33-4FBA-8170-983F9DCEA2D5}"
 	ProjectSection(SolutionItems) = preProject
-		src.packages\Distributed\Distributed.nuspec = src.packages\Distributed\Distributed.nuspec
+		src.packages\Distributed.Agent\Distributed.Agent.nuspec = src.packages\Distributed.Agent\Distributed.Agent.nuspec
+		src.packages\Distributed.Coordinator\Distributed.Coordinator.nuspec = src.packages\Distributed.Coordinator\Distributed.Coordinator.nuspec
+		src.packages\Distributed.Core\Distributed.Core.nuspec = src.packages\Distributed.Core\Distributed.Core.nuspec
+		src.packages\Distributed.Dispatcher\Distributed.Dispatcher.nuspec = src.packages\Distributed.Dispatcher\Distributed.Dispatcher.nuspec
+		src.packages\Distributed.Internal\Distributed.Internal.nuspec = src.packages\Distributed.Internal\Distributed.Internal.nuspec
+		src.packages\Distributed.Monitor\Distributed.Monitor.nuspec = src.packages\Distributed.Monitor\Distributed.Monitor.nuspec
 	EndProjectSection
 EndProject
 Global
